@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		color-scheme: light;
+		--brand-ink: #111827;
+		--brand-muted: #6b7280;
+		--brand-paper: #ffffff;
+		--brand-card: #ffffff;
+		--brand-accent: #ffffff;
+		--brand-border: #e5e7eb;
+		--brand-muted-bg: #f9fafb;
+	}
+
+	* {
+		box-sizing: border-box;
+	}
+
+	html {
+		scroll-behavior: smooth;
+	}
+
+	body {
+		margin: 0;
+		min-width: 320px;
+		background: #ffffff;
+		color: var(--brand-ink);
+		font-family: "DM Sans", "Be Vietnam Pro", sans-serif;
+	}
+
+	a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	img {
+		display: block;
+	}
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+	}
+
+	input[type="number"]::-webkit-outer-spin-button,
+	input[type="number"]::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+
+	input[type="number"] {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+
+	::selection {
+		background: rgba(17, 24, 39, 0.12);
+		color: #111827;
+	}
+}
+
+@layer components {
+	.retail-shell {
+		@apply min-h-screen font-display text-slate-900;
+		background: #ffffff;
+	}
+
+	.retail-header {
+		@apply sticky top-0 z-50 border-b border-zinc-200 backdrop-blur-md;
+		background: rgba(255, 255, 255, 0.92);
+	}
+
+	.retail-card {
+		@apply border border-zinc-200 bg-white;
+		border-radius: 20px;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.04);
+	}
+
+	.retail-kicker {
+		@apply inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-700;
+	}
+
+	.retail-heading {
+		font-family: "DM Sans", "Be Vietnam Pro", sans-serif;
+		@apply font-bold tracking-tight;
+	}
+
+	.retail-divider {
+		@apply h-px w-full bg-zinc-200;
+	}
+
+	.bg-primary {
+		border: 1px solid #e5e7eb;
+		color: #111827;
+	}
+
+	.bg-primary.text-white {
+		color: #111827;
+	}
+
+	.hover\:bg-primary-hover:hover {
+		background-color: #f3f4f6;
+	}
+
+	/* Hover text was turning the same color as the page background (primary
+	   is white), making labels disappear on hover. Force a dark, readable
+	   color on hover in light mode and a light, readable color in dark mode. */
+	.hover\:text-primary:hover,
+	.group:hover .group-hover\:text-primary {
+		color: #111827;
+	}
+
+	:is(.dark *).hover\:text-primary:hover,
+	:is(.dark *) .group:hover .group-hover\:text-primary {
+		color: #ffffff;
+	}
+}
+
+@layer utilities {
+	.bg-grid-soft {
+		background-image:
+			linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+		background-size: 32px 32px;
+	}
+
+	.shadow-card-warm {
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.05);
+	}
+
+	.form-input {
+		@apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-[#3c342e] dark:bg-[#2b241f] dark:text-[#e6d7c8];
+	}
+}
