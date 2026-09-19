@@ -1,0 +1,2 @@
+export const STANDARD_SHIPPING_FEE = 30000;
+

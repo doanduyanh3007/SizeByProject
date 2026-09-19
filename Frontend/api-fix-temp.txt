@@ -1,0 +1,41 @@
+Replace this line in api.js (around line 88):
+
+        const data = await response.json()
+
+With this code:
+
+        // Check if response has content before trying to parse JSON
+        // DELETE endpoints return 204 No Content with empty body
+        let data = null
+        const contentType = response.headers.get('content-type')
+        const contentLength = response.headers.get('content-length')
+        
+        // Only parse JSON if there's actually content
+        if (response.status !== 204 && contentLength !== '0' && contentType?.includes('application/json')) {
+            try {
+                data = await response.json()
+            } catch (jsonError) {
+                // If JSON parsing fails but response was ok, that's fine for DELETE
+                if (response.ok) {
+                    data = null
+                } else {
+                    throw jsonError
+                }
+            }
+        }
+
+Also update lines 95-96 from:
+
+                message: data.message ||
+
+to:
+
+                message: data?.message ||
+
+And line 100 from:
+
+            if (data.errors) {
+
+to:
+
+            if (data?.errors) {
