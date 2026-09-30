@@ -115,6 +115,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref } from "vue";
 
 import AdminShell from "@/components/admin/AdminShell.vue";
@@ -161,7 +162,7 @@ function normalizeAvatarUrl(rawUrl) {
 
 function getLoggedInUser() {
   try {
-    return JSON.parse(localStorage.getItem("user") || "{}");
+    return JSON.parse(getSession("user") || "{}");
   } catch {
     return {};
   }
@@ -322,7 +323,7 @@ async function saveSettings() {
       ...updated,
       imgUrl: updated.imgUrl || payload.imgUrl || null,
     };
-    localStorage.setItem("user", JSON.stringify(merged));
+    saveSession(merged);
 
     form.value.imgUrl = merged.imgUrl || null;
     form.value.newPassword = "";

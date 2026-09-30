@@ -210,6 +210,12 @@ import axios from "axios";
 import AdminShell from "@/components/admin/AdminShell.vue";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
+import { getSession } from "@/utils/auth";
+
+function authHeaders() {
+  const token = getSession("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const { confirmModal, requestConfirm, executeConfirm, cancelConfirm } =
   useConfirmDialog();
@@ -371,9 +377,9 @@ async function savePromotion() {
       productIds: form.productIds.map(Number),
     };
     if (editingId.value) {
-      await axios.put(`${API_BASE}/promotions/${editingId.value}`, payload);
+      await axios.put(`${API_BASE}/promotions/${editingId.value}`, payload, { headers: authHeaders() });
     } else {
-      await axios.post(`${API_BASE}/promotions`, payload);
+      await axios.post(`${API_BASE}/promotions`, payload, { headers: authHeaders() });
     }
     showModal.value = false;
     await loadData();
@@ -396,7 +402,7 @@ function requestRemovePromotion(promotion) {
 
 async function removePromotion(promotion) {
   try {
-    await axios.delete(`${API_BASE}/promotions/${promotion.id}`);
+    await axios.delete(`${API_BASE}/promotions/${promotion.id}`, { headers: authHeaders() });
     await loadData();
   } catch (err) {
     error.value = err?.response?.data?.message || "Không thể xóa khuyến mãi.";

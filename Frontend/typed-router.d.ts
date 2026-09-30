@@ -52,6 +52,7 @@ declare module 'vue-router/auto-routes' {
     '/SizeGuideView': RouteRecordInfo<'/SizeGuideView', '/SizeGuideView', Record<never, never>, Record<never, never>>,
     '/VnpayReturnView': RouteRecordInfo<'/VnpayReturnView', '/VnpayReturnView', Record<never, never>, Record<never, never>>,
     '/VoucherView': RouteRecordInfo<'/VoucherView', '/VoucherView', Record<never, never>, Record<never, never>>,
+    '/WarrantyCheckView': RouteRecordInfo<'/WarrantyCheckView', '/WarrantyCheckView', Record<never, never>, Record<never, never>>,
     '/WishlistView': RouteRecordInfo<'/WishlistView', '/WishlistView', Record<never, never>, Record<never, never>>,
   }
 
@@ -200,6 +201,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/VoucherView.vue': {
       routes: '/VoucherView'
+      views: never
+    }
+    'src/pages/WarrantyCheckView.vue': {
+      routes: '/WarrantyCheckView'
       views: never
     }
     'src/pages/WishlistView.vue': {

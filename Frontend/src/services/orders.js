@@ -2,9 +2,15 @@
 // Complete API service for cart and order operations
 
 import { normalizeAppliedVoucher } from '@/utils/voucherValues'
+import { getSession } from '@/utils/auth'
 
 const API_BASE_URL =
     import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+function getAuthHeaders(extra = {}) {
+    const token = getSession('token');
+    return token ? { 'Authorization': `Bearer ${token}`, ...extra } : extra;
+}
 
 function toFiniteNumber(value, fallback = 0) {
     const n = Number(value)
@@ -46,6 +52,8 @@ function normalizeOrderStatus(value) {
     if (['CONFIRMED', 'PROCESSING', 'DANG_XU_LY', 'XAC_NHAN', 'IN_PROGRESS'].includes(key)) return 'PROCESSING'
     if (['SHIPPING', 'DELIVERING', 'DANG_GIAO', 'IN_TRANSIT', 'TRANSIT'].includes(key)) return 'SHIPPING'
     if (['SUCCESS', 'COMPLETED', 'DELIVERED', 'THANH_CONG', 'HOAN_THANH', 'RECEIVED'].includes(key)) return 'SUCCESS'
+    if (['PARTIAL_RETURN_REQUEST', 'YEU_CAU_HOAN_MOT_PHAN'].includes(key)) return 'PARTIAL_RETURN_REQUEST'
+    if (['PARTIAL_RETURNED', 'HOAN_MOT_PHAN'].includes(key)) return 'PARTIAL_RETURNED'
     if (['RETURNING', 'TRA_HANG', 'YEU_CAU_TRA'].includes(key)) return 'RETURNING'
     if (['RETURNED', 'HOAN_TRA', 'HOAN_TIEN', 'REFUND', 'REFUNDED'].includes(key)) return 'RETURNED'
     if (['CANCELLED', 'CANCELED', 'DA_HUY', 'HUY', 'FAILED'].includes(key)) return 'CANCELLED'
@@ -246,7 +254,9 @@ export const cartAPI = {
      * @returns {Promise} Response with cart items and total
      */
     async getCart(accountId) {
-        const response = await fetch(`${API_BASE_URL}/cart?accountId=${accountId}`);
+        const response = await fetch(`${API_BASE_URL}/cart?accountId=${accountId}`, {
+            headers: getAuthHeaders()
+        });
 
         let data = null;
         try {
@@ -273,7 +283,7 @@ export const cartAPI = {
     async addToCart(accountId, variantId, quantity) {
         const response = await fetch(`${API_BASE_URL}/cart/add`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ accountId, variantId, quantity })
         });
 
@@ -301,7 +311,7 @@ export const cartAPI = {
     async updateCartItem(cartItemId, quantity) {
         const response = await fetch(`${API_BASE_URL}/cart/update/${cartItemId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ quantity })
         });
         if (!response.ok) throw new Error('Failed to update cart');
@@ -315,7 +325,8 @@ export const cartAPI = {
      */
     async removeFromCart(cartItemId) {
         const response = await fetch(`${API_BASE_URL}/cart/remove/${cartItemId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
 
         let data = null;
@@ -340,7 +351,8 @@ export const cartAPI = {
      */
     async clearCart(accountId) {
         const response = await fetch(`${API_BASE_URL}/cart/clear?accountId=${accountId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Failed to clear cart');
         return response.json();
@@ -358,7 +370,7 @@ export const orderAPI = {
         validatePlaceOrderPayload(orderData)
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(orderData)
         });
 
@@ -428,7 +440,7 @@ export const orderAPI = {
         let lastError = null
 
         for (const endpoint of endpoints) {
-            const response = await fetch(endpoint)
+            const response = await fetch(endpoint, { headers: getAuthHeaders() })
             const data = await parseJsonSafe(response)
 
             if (response.ok) {
@@ -491,7 +503,7 @@ export const orderAPI = {
             try {
                 const requestOptions = {
                     method: attempt.method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 }
 
                 if (attempt.body && typeof attempt.body === 'object') {
@@ -532,7 +544,7 @@ export const orderAPI = {
     async updateOrder(orderId, payload) {
         const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
             method: 'PUT', // Nếu backend dùng PATCH thì bạn đổi thành PATCH nhé
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(payload)
         });
 
@@ -579,7 +591,7 @@ export const orderAPI = {
                 try {
                     response = await fetch(`${API_BASE_URL}/orders/${normalizedOrderId}`, {
                         method,
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                         body: JSON.stringify(body),
                     })
                     data = await parseJsonSafe(response)
@@ -626,7 +638,9 @@ export const orderAPI = {
      * @returns {Promise}
      */
     async getOrder(orderId) {
-        const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
+        const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+            headers: getAuthHeaders()
+        });
         const data = await parseJsonSafe(response)
 
         if (!response.ok) {

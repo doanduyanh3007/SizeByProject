@@ -1,4 +1,4 @@
-﻿<!-- ProfileEdit.vue -->
+<!-- ProfileEdit.vue -->
 <template>
   <div class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-x-hidden transition-colors duration-200 min-h-screen flex flex-col">
 
@@ -349,12 +349,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, unref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { accountsApi, ordersApi, resolveBackendAssetUrl } from '../services/api'
 import { useReviewsStore } from '@/stores/reviews'
 import AddressManager from '@/components/AddressManager.vue'
+import { getSession, saveSession, clearSession } from '@/utils/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -431,7 +432,7 @@ onMounted(async () => {
 
 async function loadUserData() {
   try {
-    const userData = localStorage.getItem('user')
+    const userData = getSession('user')
     if (userData) {
       const localUser = JSON.parse(userData)
       
@@ -468,7 +469,7 @@ async function loadUserData() {
             membership: form.value.membership,
             avatar: avatarPreview.value
           }
-          localStorage.setItem('user', JSON.stringify(updatedUserData))
+          saveSession(updatedUserData)
           
         } catch (refreshError) {
           console.error('Failed to refresh user data:', refreshError)
@@ -500,7 +501,7 @@ async function loadUserData() {
 // Fetch recent orders
 async function fetchRecentOrders() {
   try {
-    const userData = JSON.parse(localStorage.getItem('user'))
+    const userData = JSON.parse(getSession('user'))
     if (!userData?.id) return
 
     isLoadingOrders.value = true
@@ -694,7 +695,7 @@ const handleSubmit = async () => {
   error.value = ''
 
   try {
-    const userData = JSON.parse(localStorage.getItem('user'))
+    const userData = JSON.parse(getSession('user'))
     if (!userData?.id) {
       throw new Error('Không tìm thấy thông tin tài khoản')
     }
@@ -724,7 +725,7 @@ const handleSubmit = async () => {
       ...updatedUser,
       membership: form.value.membership // Keep membership from UI
     }
-    localStorage.setItem('user', JSON.stringify(newUserData))
+    saveSession(newUserData)
 
     // Refresh current page state and keep user on profile edit view.
     alert('Hồ sơ đã cập nhật thành công!')
@@ -773,8 +774,7 @@ function formatOrderStatus(status) {
 
 // Handle logout
 const handleLogout = () => {
-  localStorage.removeItem('user')
-  localStorage.removeItem('token')
+  clearSession()
   router.push('/login')
 }
 </script>

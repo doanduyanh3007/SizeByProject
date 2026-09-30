@@ -33,7 +33,7 @@ public class OrderController {
     private final AccountVoucherRepository accountVoucherRepo;
     private final CartRepository cartRepo;
     private final CartItemRepository cartItemRepo;
-
+    private final com.finalproject2.service.OtpService otpService;
     public OrderController(OrderRepository orderRepo,
             OrderItemRepository orderItemRepo,
             PaymentMethodRepository paymentRepo,
@@ -43,7 +43,8 @@ public class OrderController {
             AccountRepository accountRepo,
             AccountVoucherRepository accountVoucherRepo,
             CartRepository cartRepo,
-            CartItemRepository cartItemRepo) {
+            CartItemRepository cartItemRepo,
+            com.finalproject2.service.OtpService otpService) {
         this.orderRepo = orderRepo;
         this.orderItemRepo = orderItemRepo;
         this.paymentRepo = paymentRepo;
@@ -54,17 +55,51 @@ public class OrderController {
         this.accountVoucherRepo = accountVoucherRepo;
         this.cartRepo = cartRepo;
         this.cartItemRepo = cartItemRepo;
+        this.otpService = otpService;
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("Email là bắt buộc.");
+        }
+        try {
+            otpService.sendOtp(email);
+        } catch (jakarta.mail.MessagingException e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Không thể gửi email: " + e.getMessage()));
+        }
+        return ResponseEntity.ok(Map.of("message", "Mã xác nhận đã được gửi đến email " + email));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        String otp = payload.get("otp");
+        if (email == null || otp == null || email.isBlank() || otp.isBlank()) {
+            throw new BadRequestException("Email và OTP là bắt buộc.");
+        }
+        boolean isValid = otpService.verifyOtp(email, otp);
+        if (isValid) {
+            return ResponseEntity.ok(Map.of("message", "Xác thực thành công", "success", true));
+        } else {
+            return ResponseEntity.status(400).body(Map.of("message", "Mã xác nhận không chính xác hoặc đã hết hạn", "success", false));
+        }
     }
 
     @PostMapping
     @Transactional
     public ResponseEntity<?> createOrder(@RequestBody Map<String, Object> payload) {
+        boolean isPos = payload.get("isPos") != null && Boolean.parseBoolean(payload.get("isPos").toString());
+        
         Integer accountId = asInteger(payload.get("accountId"));
-        if (accountId == null) {
+        Account account = null;
+        if (accountId != null) {
+            account = accountRepo.findById(accountId)
+                    .orElseThrow(() -> new BadRequestException("Tài khoản không tồn tại"));
+        } else if (!isPos) {
             throw new BadRequestException("Tài khoản không tồn tại");
         }
-        Account account = accountRepo.findById(accountId)
-                .orElseThrow(() -> new BadRequestException("Tài khoản không tồn tại"));
 
         Long pmId = asLong(payload.get("paymentMethodId"));
         if (pmId == null) {
@@ -124,7 +159,7 @@ public class OrderController {
 
             if (!isVariantSellable(variant)) {
                 throw new BadRequestException(
-                        "Sáº£n pháº©m " + variant.getProduct().getName() + " hiá»‡n khÃ´ng má»Ÿ bÃ¡n!");
+                        "Sản phẩm " + variant.getProduct().getName() + " hiện không mở bán!");
             }
 
             int updatedRows = variantRepo.decrementStockIfAvailable(variantId, qty);
@@ -168,7 +203,9 @@ public class OrderController {
         if (payload.containsKey("shippingFee")) {
             try {
                 shippingFee = new BigDecimal(payload.get("shippingFee").toString());
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                throw new BadRequestException("Phí vận chuyển không hợp lệ");
+            }
         }
         
         order.setDiscountAmount(discount);
@@ -179,6 +216,8 @@ public class OrderController {
             item.setOrder(savedOrder);
         }
         orderItemRepo.saveAll(orderItems);
+
+
 
         if (savedOrder.getVoucher() != null) {
             Voucher v = savedOrder.getVoucher();
@@ -193,8 +232,7 @@ public class OrderController {
             accountVoucherRepo.save(av);
         }
 
-        boolean isPos = payload.get("isPos") != null && Boolean.parseBoolean(payload.get("isPos").toString());
-        if (!isPos) {
+        if (!isPos && accountId != null) {
             cartRepo.findByAccountId(accountId).ifPresent(cart -> cartItemRepo.deleteByCartId(cart.getId()));
         }
 
@@ -224,12 +262,16 @@ public class OrderController {
         String oldStatus = order.getStatus();
         String newStatus = asString(req.get("status"));
 
-        // --- VÁ LỖI 3: CỘNG LẠI KHO KHI HỦY/HOÀN ĐƠN ---
-        if (oldStatus != null && !oldStatus.equals(newStatus) &&
-                ("CANCELLED".equals(newStatus) || "RETURNED".equals(newStatus))) {
-            
-            // Only add stock if old status wasn't already CANCELLED or RETURNED
-            if (!"CANCELLED".equals(oldStatus) && !"RETURNED".equals(oldStatus)) {
+        if ("RETURN_REQUEST".equals(newStatus) && Boolean.TRUE.equals(order.getReturnRejected())) {
+            throw new BadRequestException("Yêu cầu hoàn trả đã bị từ chối trước đó, không thể yêu cầu lại.");
+        }
+
+        if (oldStatus != null && !oldStatus.equals(newStatus)) {
+            boolean wasConfirmedInactive = "CANCELLED".equals(oldStatus) || "RETURNED".equals(oldStatus);
+            boolean isConfirmedInactive = "CANCELLED".equals(newStatus) || "RETURNED".equals(newStatus);
+            boolean isPendingCancel = "CANCEL_REQUEST".equals(oldStatus) || "CANCEL_REQUEST".equals(newStatus);
+
+            if (!wasConfirmedInactive && isConfirmedInactive) {
                 for (OrderItem item : order.getOrderItems()) {
                     ProductVariant variant = item.getVariant();
                     if (variant != null) {
@@ -239,12 +281,28 @@ public class OrderController {
                         variantRepo.save(variant);
                     }
                 }
+            } else if (wasConfirmedInactive && !isConfirmedInactive && !isPendingCancel) {
+                for (OrderItem item : order.getOrderItems()) {
+                    ProductVariant variant = item.getVariant();
+                    if (variant != null) {
+                        int currentStock = variant.getStockQuantity() != null ? variant.getStockQuantity() : 0;
+                        int itemQty = item.getQuantity() != null ? item.getQuantity() : 0;
+                        if (currentStock < itemQty) {
+                            throw new BadRequestException("Không đủ tồn kho để khôi phục đơn hàng cho sản phẩm: " + (variant.getProduct() != null ? variant.getProduct().getName() : "ID " + variant.getId()));
+                        }
+                        variant.setStockQuantity(currentStock - itemQty);
+                        variantRepo.save(variant);
+                    }
+                }
             }
         }
-        // ----------------------------------------------
 
         if (newStatus != null)
             order.setStatus(newStatus);
+            
+        if ("RETURN_REQUEST".equals(oldStatus) && "SUCCESS".equals(newStatus)) {
+            order.setReturnRejected(true);
+        }
         String pStatus = asString(req.get("paymentStatus"));
         String returnReason = asString(req.get("returnReason"));
         String returnEvidenceImages = asString(req.get("returnEvidenceImages"));
@@ -256,6 +314,7 @@ public class OrderController {
         }
         if (pStatus != null)
             order.setPaymentStatus(pStatus);
+
 
         orderRepo.save(order);
         return ResponseEntity.ok(mapOrderToMap(order));
@@ -282,7 +341,6 @@ public class OrderController {
         return ResponseEntity.ok(list.stream().map(this::mapOrderToMap).toList());
     }
 
-    // --- HELPER METHODS ---
     private Map<String, Object> mapOrderToMap(Order order) {
         Map<String, Object> map = new HashMap<>();
         map.put("id", order.getId());
@@ -296,6 +354,7 @@ public class OrderController {
         map.put("paymentStatus", order.getPaymentStatus());
         map.put("returnReason", order.getReturnReason());
         map.put("returnEvidenceImages", order.getReturnEvidenceImages());
+        map.put("returnRejected", order.getReturnRejected() != null && order.getReturnRejected());
         map.put("createdAt", order.getCreatedAt());
         map.put("accountId", order.getAccount() != null ? order.getAccount().getId() : null);
 
@@ -303,7 +362,6 @@ public class OrderController {
             map.put("paymentMethodName", order.getPaymentMethod().getName());
         }
 
-        // --- BỔ SUNG: ĐÓNG GÓI DANH SÁCH SẢN PHẨM GỬI CHO FRONTEND ---
         List<Map<String, Object>> items = new ArrayList<>();
         if (order.getOrderItems() != null) {
             for (OrderItem oi : order.getOrderItems()) {
@@ -311,6 +369,8 @@ public class OrderController {
                 itemMap.put("id", oi.getId());
                 itemMap.put("quantity", oi.getQuantity());
                 itemMap.put("price", oi.getPrice());
+                itemMap.put("returnQuantity", oi.getReturnQuantity());
+                itemMap.put("returnStatus", oi.getReturnStatus());
 
                 ProductVariant variant = oi.getVariant();
                 if (variant != null) {
@@ -318,7 +378,6 @@ public class OrderController {
                     if (variant.getProduct() != null) {
                         itemMap.put("productName", variant.getProduct().getName());
                         itemMap.put("productCode", variant.getProduct().getProductCode());
-                        // Lấy ảnh của biến thể, nếu không có thì lấy ảnh gốc của sản phẩm
                         itemMap.put("imageUrl", variant.getImageUrl() != null ? variant.getImageUrl()
                                 : variant.getProduct().getImageUrl());
                     }
@@ -331,10 +390,8 @@ public class OrderController {
             }
         }
 
-        // Gắn danh sách vào Response (Gắn cả 2 tên để lót đường cho mọi loại Frontend)
         map.put("items", items);
         map.put("orderItems", items);
-        // --------------------------------------------------------------
 
         return map;
     }
@@ -495,5 +552,4 @@ public class OrderController {
         }
         return null;
     }
-
 }

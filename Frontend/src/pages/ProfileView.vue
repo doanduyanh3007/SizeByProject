@@ -423,6 +423,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useProductStore } from "@/stores/products";
@@ -497,7 +498,7 @@ onMounted(async () => {
 
 async function loadUserData() {
   try {
-    const userData = localStorage.getItem("user");
+    const userData = getSession("user");
     if (userData) {
       const localUser = JSON.parse(userData);
       const localRawActive =
@@ -524,7 +525,7 @@ async function loadUserData() {
               ...latestAccount,
               isActive: normalizeIsActive(latestRawActive, user.value.isActive),
             };
-            localStorage.setItem("user", JSON.stringify(user.value));
+            saveSession(user.value);
           }
         } catch (refreshError) {
           console.error("Failed to refresh account status:", refreshError);

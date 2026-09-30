@@ -106,6 +106,10 @@
                 </td>
                 <td class="px-2 py-2 font-semibold">{{ color.name }}</td>
                 <td class="px-2 py-2 text-slate-500">{{ color.hexCode || color.hexCode1 || "—" }}</td>
+                <td class="px-2 py-2">
+                  <span v-if="color.isDeleted" class="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">Đã ẩn</span>
+                  <span v-else class="rounded-lg bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">Hoạt động</span>
+                </td>
                 <td class="px-2 py-2 text-right">
                   <div class="flex items-center justify-end gap-1">
                     <button
@@ -170,6 +174,10 @@
               >
                 <td class="px-2 py-2 font-semibold text-slate-500">#{{ size.id }}</td>
                 <td class="px-2 py-2 font-semibold">{{ size.name }}</td>
+                <td class="px-2 py-2">
+                  <span v-if="size.isDeleted" class="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">Đã ẩn</span>
+                  <span v-else class="rounded-lg bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">Hoạt động</span>
+                </td>
                 <td class="px-2 py-2 text-right">
                   <div class="flex items-center justify-end gap-1">
                     <button

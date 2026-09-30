@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="retail-shell min-h-screen text-zinc-900">
     <header
       class="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur-md"
@@ -106,9 +106,7 @@
               <span>{{ item.label }}</span>
             </router-link>
 
-            <router-link
-              to="/"
-              class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+            <router-link v-if="userRole === 'ADMIN'" to="/" class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
             >
               <span class="material-symbols-outlined text-[20px]"
                 >storefront</span
@@ -139,9 +137,7 @@
               <span>{{ item.label }}</span>
             </router-link>
 
-            <router-link
-              to="/"
-              class="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            <router-link v-if="userRole === 'ADMIN'" to="/" class="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
             >
               <span class="material-symbols-outlined text-[16px]"
                 >storefront</span
@@ -162,6 +158,7 @@
 </template>
 
 <script setup>
+import { getSession, clearSession } from "@/utils/auth";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { adminApi } from "@/services/api";
@@ -234,23 +231,42 @@ onUnmounted(() => {
 const route = useRoute();
 const router = useRouter();
 
-const navItems = [
-  { path: "/admin", label: "Tổng quan", icon: "dashboard" },
-  { path: "/admin/pos", label: "Bán hàng POS", icon: "point_of_sale" },
-  { path: "/admin/orders", label: "Đơn hàng", icon: "shopping_bag" },
-  { path: "/admin/products", label: "Sản phẩm", icon: "inventory_2" },
-  { path: "/admin/categories", label: "Danh mục", icon: "category" },
-  { path: "/admin/attributes", label: "Thuộc tính", icon: "palette" },
-  { path: "/admin/brands", label: "Thương hiệu", icon: "branding_watermark" },
-  { path: "/admin/customers", label: "Khách hàng", icon: "group" },
-  { path: "/admin/employees", label: "Nhân viên", icon: "badge" },
-  { path: "/admin/vouchers", label: "Voucher", icon: "local_activity" },
-  { path: "/admin/promotions", label: "Khuyến mãi", icon: "campaign" },
-];
+const userRole = computed(() => {
+  try {
+    const rawUser = getSession("user");
+    if (!rawUser) return localStorage.getItem("userRole") || "USER";
+    const parsedUser = JSON.parse(rawUser);
+    return parsedUser.role || localStorage.getItem("userRole") || "USER";
+  } catch {
+    return localStorage.getItem("userRole") || "USER";
+  }
+});
+
+const navItems = computed(() => {
+  const role = userRole.value;
+  const items = [
+    { path: "/admin", label: "Tổng quan", icon: "dashboard" },
+    { path: "/admin/pos", label: "Bán hàng POS", icon: "point_of_sale" },
+    { path: "/admin/orders", label: "Đơn hàng", icon: "shopping_bag" },
+    { path: "/admin/products", label: "Sản phẩm", icon: "inventory_2" },
+    { path: "/admin/customers", label: "Khách hàng", icon: "group" },
+  ];
+  if (role === "ADMIN") {
+    items.push(
+      { path: "/admin/categories", label: "Danh mục", icon: "category" },
+      { path: "/admin/attributes", label: "Thuộc tính", icon: "palette" },
+      { path: "/admin/brands", label: "Thương hiệu", icon: "branding_watermark" },
+      { path: "/admin/employees", label: "Nhân viên", icon: "badge" },
+      { path: "/admin/vouchers", label: "Voucher", icon: "local_activity" },
+      { path: "/admin/promotions", label: "Khuyến mãi", icon: "campaign" }
+    );
+  }
+  return items;
+});
 
 const currentUserName = computed(() => {
   try {
-    const raw = localStorage.getItem("user");
+    const raw = getSession("user");
     if (!raw) return "Admin";
     const parsed = JSON.parse(raw);
     return parsed.username || parsed.gmail || "Admin";
@@ -267,9 +283,7 @@ function isActive(path) {
 }
 
 function handleLogout() {
-  localStorage.removeItem("user");
-  localStorage.removeItem("userRole");
-  localStorage.removeItem("token");
+  clearSession();
   router.push({ name: "login" });
 }
 </script>

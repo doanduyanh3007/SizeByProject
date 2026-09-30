@@ -402,8 +402,8 @@
                           <button class="rounded-lg p-1.5 hover:bg-slate-100" title="Chỉnh sửa" @click.stop="openEdit(v)">
                             <span class="material-symbols-outlined text-[18px] text-slate-500">edit</span>
                           </button>
-                          <button class="rounded-lg p-1.5 hover:bg-red-50" title="Xóa" @click.stop="requestDelete(v)">
-                            <span class="material-symbols-outlined text-[18px] text-red-500">delete</span>
+                          <button class="rounded-lg p-1.5 hover:bg-slate-100" :title="String(v.status || '').toUpperCase() === 'HIDDEN' ? 'Bỏ ẩn' : 'Xóa'" @click.stop="String(v.status || '').toUpperCase() === 'HIDDEN' ? requestRestore(v) : requestDelete(v)">
+                            <span class="material-symbols-outlined text-[18px]" :class="String(v.status || '').toUpperCase() === 'HIDDEN' ? 'text-emerald-500' : 'text-red-500'">{{ String(v.status || '').toUpperCase() === 'HIDDEN' ? 'restore' : 'delete' }}</span>
                           </button>
                         </div>
                       </div>
@@ -1335,8 +1335,8 @@ async function saveVariant() {
 
 function requestDelete(variant) {
   requestConfirm({
-    title: "Xác nhận xóa biến thể",
-    message: `Bạn chắc chắn muốn xóa biến thể #${variant.id} (${variant.productName || "Sản phẩm"} - ${variant.colorName || ""} / ${variant.sizeName || ""})?`,
+    title: "Xác nhận ẩn biến thể",
+    message: `Bạn chắc chắn muốn ẩn (ngừng bán) biến thể #${variant.id} (${variant.productName || "Sản phẩm"} - ${variant.colorName || ""} / ${variant.sizeName || ""})?`,
     confirmText: "Xóa",
     danger: true,
     action: () => doDelete(variant),

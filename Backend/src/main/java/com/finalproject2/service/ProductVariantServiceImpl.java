@@ -5,6 +5,7 @@ import com.finalproject2.entity.Product;
 import com.finalproject2.entity.ProductVariant;
 import com.finalproject2.entity.Size;
 import com.finalproject2.exception.NotFoundException;
+import com.finalproject2.exception.BadRequestException;
 import com.finalproject2.model.request.ProductVariantRequest;
 import com.finalproject2.model.response.ProductVariantResponse;
 import com.finalproject2.repository.ColorRepository;
@@ -40,6 +41,10 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     @Override
     public ProductVariantResponse create(ProductVariantRequest req) {
+        if (repo.existsByProduct_IdAndColor_IdAndSize_Id(req.getProductId(), req.getColorId(), req.getSizeId())) {
+            throw new BadRequestException("Biến thể với màu và kích cỡ này đã tồn tại cho sản phẩm.");
+        }
+
         Product p = productRepo.findById(req.getProductId())
                 .orElseThrow(() -> new NotFoundException("Product not found"));
         Size s = sizeRepo.findById(req.getSizeId())
@@ -86,12 +91,34 @@ public class ProductVariantServiceImpl implements ProductVariantService {
             v.setPrice(req.getPrice());
         }
         if (req.getStockQuantity() != null) {
-            v.setStockQuantity(req.getStockQuantity());
-        }
-        if (req.getStatus() != null) {
+            int oldStock = v.getStockQuantity() != null ? v.getStockQuantity() : 0;
+            int newStock = req.getStockQuantity();
+            v.setStockQuantity(newStock);
+
+            if (req.getStatus() != null) {
+                // Admin explicitly set a status → apply it (normalized)
+                v.setStatus(normalizeStatus(req.getStatus(), newStock));
+            } else {
+                // Auto-resolve status based on stock change
+                String currentStatus = v.getStatus() != null ? v.getStatus().trim().toUpperCase() : "";
+                if (newStock <= 0) {
+                    // Stock hits zero → out of stock (unless already hidden/stop_selling)
+                    if (!"HIDDEN".equals(currentStatus) && !"STOP_SELLING".equals(currentStatus)) {
+                        v.setStatus("OUT_OF_STOCK");
+                    }
+                } else if (oldStock <= 0 && newStock > 0) {
+                    // Stock restored from zero:
+                    // - If was OUT_OF_STOCK → auto switch to SELLING
+                    // - If was STOP_SELLING / HIDDEN → keep as-is (admin paused intentionally)
+                    if ("OUT_OF_STOCK".equals(currentStatus) || currentStatus.isEmpty()) {
+                        v.setStatus("SELLING");
+                    }
+                    // else: STOP_SELLING / HIDDEN → unchanged
+                }
+                // If both old and new stock > 0 and no explicit status → keep current status
+            }
+        } else if (req.getStatus() != null) {
             v.setStatus(normalizeStatus(req.getStatus(), v.getStockQuantity()));
-        } else if (req.getStockQuantity() != null && v.getStockQuantity() <= 0) {
-            v.setStatus("OUT_OF_STOCK");
         }
         if (req.getImageUrl() != null) {
             v.setImageUrl(req.getImageUrl());
@@ -129,19 +156,14 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     @Override
     @Transactional
-    public void delete(Long id) {
+        public void delete(Long id) {
         ProductVariant v = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Variant not found"));
 
-        try {
-            repo.delete(v);
-        } catch (DataIntegrityViolationException e) {
-            // Foreign key constraint violation - soft delete by setting stockQuantity to 0
-            v.setStockQuantity(0);
-            v.setStatus("HIDDEN");
-            v.setUpdatedAt(Instant.now());
-            repo.save(v);
-        }
+        String newStatus = "HIDDEN".equals(v.getStatus()) ? "SELLING" : "HIDDEN";
+        v.setStatus(newStatus);
+        v.setUpdatedAt(Instant.now());
+        repo.save(v);
     }
 
     /**
@@ -169,15 +191,17 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         boolean hasStock = stockQuantity != null && stockQuantity > 0;
 
-        if ("HIDDEN".equals(normalized) || "INACTIVE".equals(normalized) || "STOP_SELLING".equals(normalized)) {
+        // Admin explicitly stopped selling → always preserve, regardless of stock
+        if ("STOP_SELLING".equals(normalized) || "NGUNG_BAN".equals(normalized)) {
+            return "STOP_SELLING";
+        }
+        if ("HIDDEN".equals(normalized) || "INACTIVE".equals(normalized)) {
             return "HIDDEN";
         }
-        if ("OUT_OF_STOCK".equals(normalized) || "SOLD_OUT".equals(normalized) || "OUTOFSTOCK".equals(normalized)) {
-            return "OUT_OF_STOCK";
-        }
-        if ("SELLING".equals(normalized) || "AVAILABLE".equals(normalized) || "ACTIVE".equals(normalized) || "ON_SALE".equals(normalized)) {
-            return hasStock ? "SELLING" : "OUT_OF_STOCK";
-        }
+
+        // For OUT_OF_STOCK, SELLING, or unknown → always derive from actual stock
+        // This ensures: stock=10 + status=OUT_OF_STOCK → displays as SELLING
+        //               stock=0  + status=SELLING       → displays as OUT_OF_STOCK
         return hasStock ? "SELLING" : "OUT_OF_STOCK";
     }
 }

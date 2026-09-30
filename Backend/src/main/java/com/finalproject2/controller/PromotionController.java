@@ -224,14 +224,16 @@ public class PromotionController {
     @Transactional
     public ResponseEntity<?> deletePromotion(@PathVariable Long promotionId) {
         try {
-            if (!promotionRepo.existsById(promotionId)) {
+            Promotion promotion = promotionRepo.findById(promotionId).orElse(null);
+            if (promotion == null) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "success", false,
                         "message", "Không tìm thấy khuyến mại ID " + promotionId
                 ));
             }
 
-            promotionRepo.deleteById(promotionId);
+            promotion.setIsActive(!Boolean.TRUE.equals(promotion.getIsActive()));
+            promotionRepo.save(promotion);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,

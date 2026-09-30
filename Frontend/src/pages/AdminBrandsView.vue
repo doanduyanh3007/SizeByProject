@@ -65,46 +65,7 @@
           {{ error }}
         </div>
 
-        <div
-          v-if="hiddenBrands.length > 0"
-          class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-slate-700 dark:border-amber-900/20 dark:bg-[#3f2e11] dark:text-[#fbe7a1]"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="font-semibold">Thương hiệu ẩn tạm</p>
-              <p class="text-xs text-slate-500 dark:text-[#e1c797]">
-                Những thương hiệu đã xóa mềm sẽ tạm ẩn khỏi danh sách được dùng.
-                Bạn có thể khôi phục lại khi cần.
-              </p>
-            </div>
-            <button
-              type="button"
-              class="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-              @click="requestRestoreAll"
-            >
-              Khôi phục tất cả
-            </button>
-          </div>
-          <div class="mt-3 space-y-2">
-            <div
-              v-for="brand in hiddenBrands"
-              :key="brand.id"
-              class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-[#4c4138] dark:bg-[#1e1812]"
-            >
-              <div class="text-sm">
-                <span class="font-semibold">#{{ brand.id }}</span>
-                <span class="ml-2">{{ brand.name || "Thương hiệu" }}</span>
-              </div>
-              <button
-                type="button"
-                class="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600"
-                @click="requestRestore(brand)"
-              >
-                Khôi phục
-              </button>
-            </div>
-          </div>
-        </div>
+        
 
         <div
           v-if="loading"
@@ -130,6 +91,7 @@
                 <th class="px-2 py-2 font-medium">Logo</th>
                 <th class="px-2 py-2 font-medium">Tên thương hiệu</th>
                 <th class="px-2 py-2 font-medium">Đường dẫn URL</th>
+                <th class="px-2 py-2 font-medium">Trạng thái</th>
                 <th class="px-2 py-2 text-right font-medium">Thao tác</th>
               </tr>
             </thead>

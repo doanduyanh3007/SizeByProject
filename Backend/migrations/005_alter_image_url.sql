@@ -1,0 +1,1 @@
+ALTER TABLE Products ALTER COLUMN image_url NVARCHAR(MAX);

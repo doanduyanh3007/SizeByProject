@@ -46,17 +46,16 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public List<CategoryResponse> getAll() {
-        return repo.findAll().stream().map(e -> MapperUtil.map(e, CategoryResponse.class)).collect(Collectors.toList());
+        return repo.findAll().stream()
+                .map(e -> MapperUtil.map(e, CategoryResponse.class))
+                .collect(Collectors.toList());
     }
 
     @Override
     public void delete(Long id) {
         Category c = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
-        try {
-            repo.delete(c);
-        } catch (DataIntegrityViolationException e) {
-            throw new BadRequestException("Không thể xóa! Đang có sản phẩm thuộc danh mục này.");
-        }
+        c.setIsDeleted(!Boolean.TRUE.equals(c.getIsDeleted()));
+        repo.save(c);
     }
 }

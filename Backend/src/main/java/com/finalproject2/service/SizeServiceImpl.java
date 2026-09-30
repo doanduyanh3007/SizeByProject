@@ -56,10 +56,7 @@ public class SizeServiceImpl implements SizeService {
     public void delete(Long id) {
         Size size = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy size"));
-        try {
-            repo.delete(size);
-        } catch (DataIntegrityViolationException e) {
-            throw new BadRequestException("Không thể xóa! Đang có biến thể sử dụng size này.");
-        }
+        size.setIsDeleted(!Boolean.TRUE.equals(size.getIsDeleted()));
+        repo.save(size);
     }
 }

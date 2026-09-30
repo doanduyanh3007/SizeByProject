@@ -101,22 +101,17 @@ public class ProductServiceImpl implements ProductService {
         Product p = productRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
-        try {
-            productRepo.delete(p);
-        } catch (DataIntegrityViolationException e) {
-            // Foreign key constraint violation - soft delete by setting status to HIDDEN
-            p.setStatus("HIDDEN");
-            p.setUpdatedAt(Instant.now());
-            productRepo.save(p);
-            
-            // Soft delete all variants
-            if (p.getProductVariants() != null) {
-                for (com.finalproject2.entity.ProductVariant v : p.getProductVariants()) {
-                    v.setStatus("HIDDEN");
-                    v.setUpdatedAt(Instant.now());
-                }
-                productRepo.save(p);
+        p.setStatus("HIDDEN".equals(p.getStatus()) ? "SELLING" : "HIDDEN");
+        p.setUpdatedAt(Instant.now());
+        productRepo.save(p);
+        
+        // Soft delete all variants
+        if (p.getProductVariants() != null) {
+            for (com.finalproject2.entity.ProductVariant v : p.getProductVariants()) {
+                v.setStatus("HIDDEN".equals(v.getStatus()) ? "SELLING" : "HIDDEN");
+                v.setUpdatedAt(Instant.now());
             }
+            productRepo.save(p);
         }
     }
 

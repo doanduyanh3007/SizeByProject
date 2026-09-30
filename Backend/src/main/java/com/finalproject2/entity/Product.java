@@ -61,8 +61,8 @@ public class Product {
 
     private Instant updatedAt;
 
-    @Size(max = 2048)
-    @Column(name = "image_url")
+    @Size(max = 2147483647, message = "Kích thước ảnh vượt quá giới hạn cho phép")
+    @Column(name = "image_url", columnDefinition = "NVARCHAR(MAX)")
     private String imageUrl;
 
     @Column(name = "gallery_images", columnDefinition = "NVARCHAR(MAX)")

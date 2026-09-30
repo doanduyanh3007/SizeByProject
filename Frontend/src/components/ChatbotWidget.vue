@@ -31,6 +31,12 @@
             class="max-w-[250px] rounded-2xl px-4 py-2 text-sm shadow-sm whitespace-pre-wrap"
           >
             {{ msg.text }}
+            <div v-if="msg.products && msg.products.length > 0" class="mt-3 flex flex-col gap-2">
+               <div v-for="pid in msg.products" :key="pid" @click="goToProduct(pid)" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-colors shadow-sm">
+                  <img :src="getProductImg(pid)" class="w-12 h-12 object-cover rounded-md border border-slate-100" />
+                  <span class="text-xs font-semibold text-slate-700 line-clamp-2 leading-tight flex-1">{{ getProductName(pid) }}</span>
+               </div>
+            </div>
           </div>
         </div>
         <div v-if="loading" class="self-start">
@@ -38,6 +44,17 @@
             <span class="animate-bounce">.</span><span class="animate-bounce delay-100">.</span><span class="animate-bounce delay-200">.</span>
           </div>
         </div>
+      </div>
+
+      <div v-if="messages.length === 1 && !loading" class="px-4 pb-2 flex flex-wrap gap-2 bg-slate-50">
+        <button 
+          v-for="q in quickQuestions" 
+          :key="q" 
+          @click="sendQuickMessage(q)" 
+          class="bg-blue-50 text-blue-600 text-xs px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors border border-blue-200 text-left"
+        >
+          {{ q }}
+        </button>
       </div>
 
       <div class="p-3 border-t border-slate-200 bg-white">
@@ -63,8 +80,10 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { API_BASE_URL } from "@/services/api";
+import { useProductStore } from "@/stores/products";
+import { useRouter } from "vue-router";
 
 const isOpen = ref(false);
 const input = ref("");
@@ -72,6 +91,50 @@ const loading = ref(false);
 const messages = ref([
   { text: "Chào bạn! Tôi là trợ lý ảo của SizeBy. Tôi có thể giúp gì cho bạn hôm nay?", isBot: true },
 ]);
+
+const productStore = useProductStore();
+const router = useRouter();
+
+onMounted(() => {
+  if (productStore.products.length === 0) {
+    productStore.fetchProducts();
+  }
+});
+
+function getProductData(id) {
+  return productStore.products.find(p => p.id === id) || {};
+}
+
+function getProductImg(id) {
+  const p = getProductData(id);
+  if (p.imageUrl) {
+    return p.imageUrl;
+  }
+  if (p.images && p.images.length > 0) {
+     const img = p.images.find(img => img.isPrimary) || p.images[0];
+     return img.imageUrl;
+  }
+  return 'https://placehold.co/100x100?text=No+Image'; 
+}
+
+function getProductName(id) {
+  return getProductData(id).name || "Sản phẩm";
+}
+
+function goToProduct(id) {
+  isOpen.value = false;
+  router.push(`/product/${id}`);
+}
+
+const quickQuestions = [
+  "Sản phẩm nào đang bán chạy nhất?",
+  "Sản phẩm nào được đánh giá tốt nhất?"
+];
+
+function sendQuickMessage(text) {
+  input.value = text;
+  sendMessage();
+}
 
 async function sendMessage() {
   const text = input.value.trim();
@@ -91,7 +154,13 @@ async function sendMessage() {
     if (!res.ok) throw new Error("API Error");
     
     const data = await res.json();
-    messages.value.push({ text: data.reply || "Xin lỗi, tôi không thể trả lời lúc này.", isBot: true });
+    const productIds = [];
+    let cleanText = (data.reply || "Xin lỗi, tôi không thể trả lời lúc này.").replace(/\[PRODUCT:(\d+)\]/g, (match, id) => {
+      if (!productIds.includes(Number(id))) productIds.push(Number(id));
+      return "";
+    }).trim();
+
+    messages.value.push({ text: cleanText, isBot: true, products: productIds });
   } catch (err) {
     messages.value.push({ text: "Lỗi kết nối đến máy chủ chatbot.", isBot: true });
   } finally {

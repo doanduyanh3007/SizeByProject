@@ -8,4 +8,5 @@ import lombok.Setter;
 public class SizeResponse {
     private Long id;
     private String name;
+    private Boolean isDeleted;
 }

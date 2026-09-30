@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="retail-shell flex min-h-screen flex-col text-slate-900 dark:text-white font-display antialiased selection:bg-primary"
   >
@@ -38,6 +38,39 @@
           >
             Đã hiểu
           </button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- OTP Modal -->
+    <transition name="fade-scale">
+      <div v-if="otpModal.show" class="fixed inset-0 z-[100] flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="otpModal.show = false"></div>
+        <div class="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl dark:border-[#334455] dark:bg-[#18212b]">
+          <h3 class="mb-2 text-xl font-bold">Xác nhận email</h3>
+          <p class="mb-4 text-sm text-slate-500">
+            Mã xác nhận 6 số đã được gửi đến email <strong>{{ shippingForm.gmail }}</strong>.
+          </p>
+          <input
+            v-model="otpModal.code"
+            type="text"
+            placeholder="Nhập mã 6 số"
+            class="mb-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-center text-lg font-bold tracking-widest outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-[#3b4754] dark:bg-[#111418] dark:text-white"
+            maxlength="6"
+          />
+          <p v-if="otpModal.error" class="mb-4 text-sm text-red-500">{{ otpModal.error }}</p>
+          <div class="flex gap-3">
+            <button class="w-full rounded-xl bg-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-300 dark:bg-[#283039] dark:text-white" @click="otpModal.show = false">
+              Hủy
+            </button>
+            <button
+              class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-hover disabled:opacity-50"
+              :disabled="otpModal.loading || otpModal.code.length < 6"
+              @click="verifyOtpAndPlaceOrder"
+            >
+              {{ otpModal.loading ? 'Đang xác thực...' : 'Xác nhận' }}
+            </button>
+          </div>
         </div>
       </div>
     </transition>
@@ -488,6 +521,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCartStore } from "@/stores/cart";
@@ -518,6 +552,14 @@ const addressManagerRef = ref(null);
 const isProcessing = ref(false);
 const isApplyingVoucher = ref(false);
 const activePromotions = ref([]);
+
+const otpModal = reactive({
+  show: false,
+  code: "",
+  loading: false,
+  error: "",
+  verified: false
+});
 
 const modal = reactive({
   show: false,
@@ -1269,6 +1311,29 @@ function redirectToLoginForCheckout() {
 // =====================================
 // ĐÂY LÀ CHỖ ĐỂ TÍCH HỢP PAYLOAD ĐẶT HÀNG!
 // =====================================
+async function verifyOtpAndPlaceOrder() {
+  otpModal.loading = true;
+  otpModal.error = "";
+  try {
+    const res = await fetch("http://localhost:8080/api/orders/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: shippingForm.gmail, otp: otpModal.code })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || "Mã xác nhận không đúng");
+    }
+    otpModal.verified = true;
+    otpModal.show = false;
+    handlePlaceOrder();
+  } catch (err) {
+    otpModal.error = err.message;
+  } finally {
+    otpModal.loading = false;
+  }
+}
+
 async function handlePlaceOrder() {
   if (isProcessing.value) return;
 
@@ -1305,6 +1370,14 @@ async function handlePlaceOrder() {
     return;
   }
 
+  // Validate email khi COD - kiểm tra trước khi làm bất cứ điều gì khác
+  if (effectivePaymentMethodId.value === 1 && !otpModal.verified) {
+    if (!shippingForm.gmail || !shippingForm.gmail.includes('@')) {
+      showAlert("Thiếu email", "Vui lòng nhập Email hợp lệ để nhận mã xác nhận khi thanh toán COD.", "error");
+      return;
+    }
+  }
+
   if (appliedVoucher.value?.code) {
     try {
       const validatedVoucher = await voucherAPI.applyVoucher(
@@ -1324,6 +1397,26 @@ async function handlePlaceOrder() {
       clearVoucher();
       return;
     }
+  }
+
+  if (effectivePaymentMethodId.value === 1 && !otpModal.verified) {
+    isProcessing.value = true;
+    try {
+      const res = await fetch("http://localhost:8080/api/orders/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: shippingForm.gmail })
+      });
+      if (!res.ok) throw new Error("Không thể gửi mã OTP");
+      otpModal.code = "";
+      otpModal.error = "";
+      otpModal.show = true;
+    } catch (err) {
+      showAlert("Lỗi", "Không thể gửi mã xác nhận. " + err.message, "error");
+    } finally {
+      isProcessing.value = false;
+    }
+    return;
   }
 
   isProcessing.value = true;
@@ -1460,7 +1553,7 @@ async function loadAvailableVouchers() {
     let accountId = null;
     let phone = null;
     try {
-      const userStr = localStorage.getItem("user") || sessionStorage.getItem("user");
+      const userStr = getSession("user") || sessionStorage.getItem("user");
       if (userStr) {
         const user = JSON.parse(userStr);
         accountId = user.id ?? user.accountId ?? null;
@@ -1592,7 +1685,7 @@ function fillAddressHierarchyFromSelection(address) {
 }
 
 async function hydrateCheckout() {
-  const userData = localStorage.getItem("user");
+  const userData = getSession("user");
   if (userData) {
     try {
       currentUser.value = JSON.parse(userData);

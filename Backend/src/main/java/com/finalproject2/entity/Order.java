@@ -88,6 +88,10 @@ public class Order {
     @Column(name = "return_evidence_images", length = 1000)
     private String returnEvidenceImages;
 
+    @ColumnDefault("0")
+    @Column(name = "return_rejected")
+    private Boolean returnRejected;
+
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<OrderItem> orderItems = new LinkedHashSet<>();

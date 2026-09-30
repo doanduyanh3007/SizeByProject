@@ -1,3 +1,4 @@
+import { getSession } from '@/utils/auth';
 import { createRouter, createWebHistory } from "vue-router";
 
 import AboutView from "@/pages/AboutView.vue";
@@ -34,7 +35,7 @@ import AdminAttributesView from "@/pages/AdminAttributesView.vue";
 import WishlistView from "@/pages/WishlistView.vue";
 
 function getLoggedInAccountId() {
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getSession("user");
   if (!rawUser) return null;
   try {
     const parsedUser = JSON.parse(rawUser);
@@ -58,13 +59,13 @@ function getLoggedInAccountId() {
 }
 
 function getUserRole() {
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getSession("user");
   if (!rawUser) return null;
   try {
     const parsedUser = JSON.parse(rawUser);
-    return parsedUser.role || localStorage.getItem("userRole") || null;
+    return parsedUser.role || getSession("userRole") || null;
   } catch {
-    return localStorage.getItem("userRole") || null;
+    return getSession("userRole") || null;
   }
 }
 
@@ -111,6 +112,7 @@ const router = createRouter({
     { path: "/compare", name: "compare", component: CompareView },
     { path: "/wishlist", name: "wishlist", component: WishlistView },
     { path: "/orders", name: "orders", component: OrderHistoryView },
+    { path: "/warranty", name: "warranty", component: () => import('@/pages/WarrantyCheckView.vue') },
     { path: "/order/:id", name: "order-detail", component: OrderHistoryView },
     {
       path: "/payment/vnpay-return",
@@ -123,25 +125,25 @@ const router = createRouter({
       path: "/admin",
       name: "admin-home",
       component: AdminHomeView,
-      meta: { requiresAdmin: true },
+      meta: { allowedRoles: ["ADMIN", "STAFF"] },
     },
     {
       path: "/admin/pos",
       name: "admin-pos",
       component: AdminPOSView,
-      meta: { requiresAdmin: true },
+      meta: { allowedRoles: ["ADMIN", "STAFF"] },
     },
     {
       path: "/admin/orders",
       name: "admin-orders",
       component: AdminOrdersView,
-      meta: { requiresAdmin: true },
+      meta: { allowedRoles: ["ADMIN", "STAFF"] },
     },
     {
       path: "/admin/products",
       name: "admin-products",
       component: AdminProductsView,
-      meta: { requiresAdmin: true },
+      meta: { allowedRoles: ["ADMIN", "STAFF"] },
     },
     {
       path: "/admin/brands",

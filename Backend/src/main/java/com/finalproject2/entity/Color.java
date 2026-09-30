@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -33,6 +34,10 @@ public class Color {
     @Size(max = 255)
     @Column(name = "hexCode")
     private String hexCode1;
+
+    @ColumnDefault("0")
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
 
     @JsonIgnore
     @OneToMany(mappedBy = "color")

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -29,6 +30,10 @@ public class Category {
     @Size(max = 250)
     @Column(name = "image_url")
     private String imageUrl;
+
+    @ColumnDefault("0")
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
 
     @JsonIgnore
     @OneToMany(mappedBy = "category")

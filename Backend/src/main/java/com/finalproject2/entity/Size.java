@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -24,6 +25,10 @@ public class Size {
     @jakarta.validation.constraints.Size(max = 255)
     @Column(name = "name", columnDefinition = "nvarchar(255)")
     private String name;
+
+    @ColumnDefault("0")
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
 
     @JsonIgnore
     @OneToMany(mappedBy = "size")

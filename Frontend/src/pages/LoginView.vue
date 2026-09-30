@@ -228,6 +228,7 @@ import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { authApi } from "../services/api";
 import { GoogleLogin } from "vue3-google-login"; // BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ HIỆN NÚT
+import { saveSession } from "@/utils/auth";
 
 const router = useRouter();
 
@@ -332,15 +333,10 @@ function handleLoginSuccess(response, account) {
     roles: Array.isArray(account.roles) ? account.roles : [],
   };
 
-  localStorage.setItem("user", JSON.stringify(normalizedUser));
-  localStorage.setItem("userRole", role);
-
-  if (response.token) {
-    localStorage.setItem("token", response.token);
-  }
+  saveSession(normalizedUser, response.token || null, role);
 
   setTimeout(() => {
-    if (role === "ADMIN") {
+    if (role === "ADMIN" || role === "STAFF") {
       router.push({ name: "admin-home" });
     } else {
       router.push({ name: "home" });

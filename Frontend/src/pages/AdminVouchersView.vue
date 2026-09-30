@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- Toast notification -->
   <Teleport to="body">
     <Transition name="slide-fade">
@@ -236,11 +236,7 @@
                         >edit</span
                       >
                     </button>
-                    <button
-                      class="rounded-lg p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      title="Xóa"
-                      @click="requestDelete(voucher)"
-                    >
+                    <button v-if="String(voucher.status || '').toUpperCase() !== 'INACTIVE'" class="rounded-lg p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20" title="Xóa" @click="requestDelete(voucher)">
                       <span
                         class="material-symbols-outlined text-[18px] text-red-500"
                         >delete</span
@@ -470,7 +466,8 @@
                       type="checkbox"
                       :checked="isAllCustomersSelected"
                       @change="toggleAllCustomers"
-                      class="rounded border-slate-900 text-primary focus:ring-primary"
+                      class="rounded !border-2 !border-black text-primary focus:ring-primary"
+                      style="border-color: black !important; border-width: 1px !important; border-style: solid !important;"
                     />
                   </th>
                   <th class="p-3 font-semibold">Tên khách hàng</th>
@@ -491,7 +488,8 @@
                       :value="cust.id"
                       v-model="selectedCustomerIds"
                       @click.stop
-                      class="rounded border-slate-900 text-primary focus:ring-primary"
+                      class="rounded !border-2 !border-black text-primary focus:ring-primary"
+                      style="border-color: black !important; border-width: 1px !important; border-style: solid !important;"
                     />
                   </td>
                   <td class="p-3">{{ cust.username || "Chưa có tên" }}</td>

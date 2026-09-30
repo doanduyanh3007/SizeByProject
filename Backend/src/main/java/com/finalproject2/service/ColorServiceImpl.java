@@ -56,10 +56,7 @@ public class ColorServiceImpl implements ColorService {
     public void delete(Long id) {
         Color color = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy màu sắc"));
-        try {
-            repo.delete(color);
-        } catch (DataIntegrityViolationException e) {
-            throw new BadRequestException("Không thể xóa! Đang có biến thể sử dụng màu này.");
-        }
+        color.setIsDeleted(!Boolean.TRUE.equals(color.getIsDeleted()));
+        repo.save(color);
     }
 }

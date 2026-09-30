@@ -191,6 +191,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref } from "vue";
 import { voucherAPI } from "@/services/orders";
 import { vouchersApi } from "@/services/api";
@@ -282,7 +283,7 @@ onMounted(async () => {
     let accountId = null;
     let phone = null;
     try {
-      const userStr = localStorage.getItem("user") || sessionStorage.getItem("user");
+      const userStr = getSession("user") || sessionStorage.getItem("user");
       if (userStr) {
         const user = JSON.parse(userStr);
         accountId = user.id ?? user.accountId ?? null;

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="retail-shell min-h-screen flex flex-col overflow-x-hidden font-display"
   >
@@ -444,30 +444,59 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast Notification -->
+    <transition name="slide-up">
+      <div
+        v-if="toastMessage"
+        :class="[
+          'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-white font-semibold text-sm',
+          toastType === 'success' ? 'bg-green-600' : 'bg-red-500'
+        ]"
+      >
+        <span class="material-symbols-outlined text-[22px]">
+          {{ toastType === 'success' ? 'check_circle' : 'error' }}
+        </span>
+        {{ toastMessage }}
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCompareStore } from "@/stores/compare";
 import { useFavoritesStore } from "@/stores/favorites";
 import { useProductStore } from "@/stores/products";
+import { useCartStore } from "@/stores/cart";
 import { getProductImageUrl } from "@/utils/productImages";
 import axios from "axios";
 
 const productStore = useProductStore();
+const cartStore = useCartStore();
 const favoritesStore = useFavoritesStore();
 const compareStore = useCompareStore();
 const router = useRouter();
 const route = useRoute();
 const currentUser = ref(null);
 const activePromotions = ref([]);
+const toastMessage = ref('');
+const toastType = ref('success'); // 'success' | 'error'
+let toastTimer = null;
+
+function showToast(msg, type = 'success') {
+  toastMessage.value = msg;
+  toastType.value = type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastMessage.value = ''; }, 3000);
+}
 
 onMounted(() => {
-  const userData = localStorage.getItem("user");
+  const userData = getSession("user");
   if (userData) {
-    currentUser.value = JSON.parse(userData);
+    currentUser.value = typeof userData === 'string' ? JSON.parse(userData) : userData;
   }
 });
 
@@ -965,8 +994,63 @@ watch(
   },
 );
 
+async function handleQuickAdd(product) {
+  if (!product) return;
+
+  // Lấy user từ session (hỗ trợ cả sessionStorage & localStorage)
+  if (!currentUser.value) {
+    const userData = getSession("user");
+    if (userData) {
+      currentUser.value = typeof userData === 'string' ? JSON.parse(userData) : userData;
+    }
+  }
+
+  if (!currentUser.value) {
+    showToast("Vui lòng đăng nhập để thêm vào giỏ hàng", "error");
+    return;
+  }
+
+  // Lấy variants từ store nếu product.variants chưa có
+  const storeVariants = product.variants && product.variants.length > 0
+    ? product.variants
+    : (productStore.variants || []).filter(v => Number(v.productId) === Number(product.id));
+
+  if (!storeVariants || storeVariants.length === 0) {
+    showToast("Vui lòng bấm 'Xem chi tiết' để chọn phân loại sản phẩm", "error");
+    return;
+  }
+  const availableVariant = storeVariants.find(v => (v.stockQuantity || 0) > 0) || storeVariants[0];
+  if (!availableVariant || (availableVariant.stockQuantity || 0) <= 0) {
+    showToast("Sản phẩm đã hết hàng!", "error");
+    return;
+  }
+
+  cartStore.accountId = currentUser.value.id;
+  const added = await cartStore.addToCart(product, availableVariant, 1);
+  if (added !== false) {
+    showToast(`Đã thêm "${product.name || 'sản phẩm'}" vào giỏ hàng!`, "success");
+  } else {
+    showToast("Thêm vào giỏ thất bại, vui lòng thử lại.", "error");
+  }
+}
+
 function toggleCompare(productId) {
   compareStore.add(productId);
   router.push("/compare");
 }
 </script>
+
+<style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translate(-50%, 20px);
+}
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 20px);
+}
+</style>

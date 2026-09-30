@@ -371,10 +371,10 @@ export const useCartStore = defineStore('cart', () => {
     // LOCAL CART FUNCTIONS (Fallback)
     // ============================================
 
-    function addToCart(product, variant, quantity = 1) {
+    async function addToCart(product, variant, quantity = 1) {
         if (parseAccountId(accountId.value) !== null) {
-            void addToCartBackend(variant.id, quantity, product, variant)
-            return true
+            const success = await addToCartBackend(variant.id, quantity, product, variant)
+            return success
         }
 
         setLoginRequiredError()

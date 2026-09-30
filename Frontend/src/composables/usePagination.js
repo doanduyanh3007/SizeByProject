@@ -32,8 +32,7 @@ export function usePagination(source, pageSize = 10) {
         () => unref(source),
         () => {
             currentPage.value = 1
-        },
-        { deep: true },
+        }
     )
 
     watch(totalPages, (pages) => {

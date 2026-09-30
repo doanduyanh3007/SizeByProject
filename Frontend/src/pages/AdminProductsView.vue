@@ -233,7 +233,7 @@
                   v-for="(product, index) in paginatedProducts"
                   :key="product.id"
                   class="cursor-pointer border-b border-slate-100 transition-all hover:bg-slate-50 dark:border-[#2b241f] dark:hover:bg-[#2b241f]/40"
-                  :class="selectedProduct?.id === product.id ? 'bg-primary/10 border-l-4 border-l-primary dark:bg-primary/20' : ''"
+                  :class="[String(product.status || '').toUpperCase() === 'HIDDEN' ? 'opacity-50 grayscale bg-slate-50 dark:bg-[#1a1410]' : '', selectedProduct?.id === product.id ? 'bg-primary/10 border-l-4 border-l-primary dark:bg-primary/20' : '']"
                   @click="selectProduct(product)"
                 >
                   <td class="px-2 py-3 font-semibold text-slate-500 dark:text-[#b9aa9a]">
@@ -280,13 +280,8 @@
                       >
                         <span class="material-symbols-outlined text-[16px] text-slate-500">edit</span>
                       </button>
-                      <button
-                        type="button"
-                        class="rounded p-1 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title="Xóa sản phẩm"
-                        @click="requestDelete(product)"
-                      >
-                        <span class="material-symbols-outlined text-[16px] text-red-500">delete</span>
+                      <button type="button" class="rounded p-1 hover:bg-slate-100 dark:hover:bg-[#2b241f]" :title="String(product.status || '').toUpperCase() === 'HIDDEN' ? 'Bỏ ẩn sản phẩm' : 'Xóa sản phẩm'" @click.stop="String(product.status || '').toUpperCase() === 'HIDDEN' ? requestRestoreProduct(product) : requestDelete(product)">
+                        <span class="material-symbols-outlined text-[16px]" :class="String(product.status || '').toUpperCase() === 'HIDDEN' ? 'text-emerald-500' : 'text-red-500'">{{ String(product.status || '').toUpperCase() === 'HIDDEN' ? 'restore' : 'delete' }}</span>
                       </button>
                     </div>
                   </td>
@@ -419,13 +414,8 @@
                   >
                     <span class="material-symbols-outlined text-[16px] text-slate-500">edit</span>
                   </button>
-                  <button
-                    type="button"
-                    class="rounded-lg p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    title="Xóa biến thể"
-                    @click="requestDeleteVariant(variant)"
-                  >
-                    <span class="material-symbols-outlined text-[16px] text-red-500">delete</span>
+                  <button type="button" class="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-[#2b241f]" :title="String(variant.status || '').toUpperCase() === 'HIDDEN' ? 'Bỏ ẩn biến thể' : 'Xóa biến thể'" @click.stop="String(variant.status || '').toUpperCase() === 'HIDDEN' ? requestRestoreVariant(variant) : requestDeleteVariant(variant)">
+                    <span class="material-symbols-outlined text-[16px]" :class="String(variant.status || '').toUpperCase() === 'HIDDEN' ? 'text-emerald-500' : 'text-red-500'">{{ String(variant.status || '').toUpperCase() === 'HIDDEN' ? 'restore' : 'delete' }}</span>
                   </button>
                 </div>
               </div>
@@ -1182,10 +1172,10 @@ async function loadData() {
     ]);
 
     products.value = toList(pList);
-    brands.value = toList(bList);
-    categories.value = toList(cList);
-    colors.value = toList(colList);
-    sizes.value = toList(szList);
+    brands.value = toList(bList).filter(x => !x.isDeleted);
+    categories.value = toList(cList).filter(x => !x.isDeleted);
+    colors.value = toList(colList).filter(x => !x.isDeleted);
+    sizes.value = toList(szList).filter(x => !x.isDeleted);
     variants.value = toList(vList);
   } catch (err) {
     console.error("Failed to load products/inventory:", err);
@@ -1312,9 +1302,9 @@ async function saveProduct() {
 
 function requestDelete(product) {
   requestConfirm({
-    title: "Xác nhận xóa sản phẩm",
-    message: `Bạn chắc chắn muốn xóa sản phẩm "${product.name || "Sản phẩm"}" (#${product.id})?`,
-    confirmText: "Xóa sản phẩm",
+    title: "Xác nhận ẩn sản phẩm",
+    message: `Bạn chắc chắn muốn ẩn (ngừng bán) sản phẩm "${product.name || "Sản phẩm"}" (#${product.id})?`,
+    confirmText: "Ẩn sản phẩm",
     danger: true,
     action: async () => {
       await adminApi.deleteProduct(product.id);
@@ -1501,9 +1491,9 @@ async function saveVariant() {
 
 function requestDeleteVariant(variant) {
   requestConfirm({
-    title: "Xác nhận xóa biến thể",
+    title: "Xác nhận ẩn biến thể",
     message: `Bạn có chắc muốn xóa biến thể #${variant.id} (${variant.colorName} / ${variant.sizeName})?`,
-    confirmText: "Xóa biến thể",
+    confirmText: "Ẩn biến thể",
     danger: true,
     action: async () => {
       await adminApi.deleteVariant(variant.id);

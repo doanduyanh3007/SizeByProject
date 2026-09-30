@@ -218,6 +218,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, ref, onMounted, watch } from "vue";
 import { useCartStore } from "@/stores/cart";
 import { voucherAPI, orderUtils } from "@/services/orders";
@@ -245,7 +246,7 @@ function getAccountId(user) {
 }
 
 onMounted(async () => {
-  const userData = localStorage.getItem("user");
+  const userData = getSession("user");
   if (userData) {
     try {
       currentUser.value = JSON.parse(userData);

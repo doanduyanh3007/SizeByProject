@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Toast notification -->
   <Teleport to="body">
     <Transition name="slide-fade">
@@ -478,18 +478,6 @@
                 </option>
               </select>
             </div>
-            <!-- Nút hoàn tiền — chỉ hiện khi đơn đã thanh toán -->
-            <div v-if="editingOrderId && form.paymentStatus === 'PAID'" class="md:col-span-2">
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 disabled:opacity-60 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
-                :disabled="statusChanging"
-                @click="requestRefund"
-              >
-                <span class="material-symbols-outlined text-[18px]">currency_exchange</span>
-                Hoàn tiền
-              </button>
-            </div>
 
             <!-- Badge đã hoàn tiền -->
             <div v-if="editingOrderId && form.paymentStatus === 'REFUNDED'" class="md:col-span-2">
@@ -520,6 +508,32 @@
                 class="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-[#3c342e] dark:bg-red-900/20 dark:text-red-300 whitespace-pre-wrap"
               >
                 {{ form.returnReason }}
+              </div>
+            </div>
+
+            <!-- Yêu cầu hủy đơn từ khách hàng -->
+            <div v-if="form.status === 'CANCEL_REQUEST'" class="md:col-span-2">
+              <div class="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/40 dark:bg-orange-900/10">
+                <p class="mb-1 text-xs font-bold uppercase tracking-wide text-orange-600 dark:text-orange-400">⚠ Khách hàng yêu cầu hủy đơn</p>
+                <div v-if="form.returnReason" class="mt-2 text-sm text-orange-700 dark:text-orange-300 whitespace-pre-wrap">{{ form.returnReason }}</div>
+                <div class="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                    :disabled="statusChanging"
+                    @click="approveCancelRequest"
+                  >
+                    ✓ Xác nhận hủy & hoàn kho
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-[#3c342e] dark:bg-[#2b241f] dark:text-white"
+                    :disabled="statusChanging"
+                    @click="rejectCancelRequest"
+                  >
+                    ✕ Từ chối hủy (giữ đơn)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -624,11 +638,7 @@
           <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
 
             <template v-if="editingOrderId">
-              <button
-                v-for="action in availableStatusActions"
-                :key="action.status"
-                type="button"
-                class="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              <button  v-for="action in availableStatusActions" :key="action.status" type="button" class="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 :class="statusActionClass(action.variant)"
                 :disabled="statusChanging"
                 @click="requestStatusChange(action.status, action.label)"
@@ -636,9 +646,7 @@
                 {{ action.label }}
               </button>
 
-              <button
-                v-if="canCancelOrder"
-                type="button"
+              <button v-if="canCancelOrder" type="button"
                 class="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                 :disabled="statusChanging"
                 @click="requestCancelOrder"
@@ -646,9 +654,7 @@
                 Hủy đơn hàng
               </button>
 
-              <button
-                v-if="canCustomerReturn"
-                type="button"
+              <button v-if="canCustomerReturn" type="button"
                 class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-60 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
                 :disabled="statusChanging"
                 @click="requestCustomerReturn"
@@ -682,6 +688,21 @@
       @confirm="executeConfirm"
       @cancel="cancelConfirm"
     />
+
+    <!-- Return Modal for Admin -->
+    <div v-if="returnModal.show" class="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6">
+      <div class="absolute inset-0 bg-black/60" @click="returnModal.show = false"></div>
+      <div class="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-[#3c342e] dark:bg-[#1f1915]">
+        <h3 class="mb-2 text-xl font-bold tracking-tight text-slate-900 dark:text-white">Yêu cầu trả hàng</h3>
+        <p class="mb-4 text-sm text-slate-500">Chọn serial và lý do hoàn trả cho đơn #{{ returnModal.orderId }}</p>
+        
+        <textarea v-model="returnModal.reason" rows="3" class="w-full mb-4 rounded-xl border border-slate-900 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus:border-primary focus:outline-none dark:border-[#4c4138] dark:bg-[#2a231f] dark:text-white" placeholder="Lý do hoàn trả..."></textarea>
+        <div class="flex justify-end gap-2">
+          <button @click="returnModal.show = false" class="rounded-xl bg-slate-100 px-4 py-2 font-bold text-slate-700">Hủy</button>
+          <button @click="executeAdminReturnOrder" class="rounded-xl bg-primary px-4 py-2 font-bold text-white">Xác nhận</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Toast Notification -->
     <Teleport to="body">
@@ -725,9 +746,11 @@ const channelFilter = ref("ALL");
 
 const showModal = ref(false);
 const editingOrderId = ref(null);
+const originalPaymentStatusValue = computed(() => { const o = orders.value.find(x => Number(x.id) === Number(editingOrderId.value)); return o ? normalizePaymentStatusValue(o.paymentStatus) : ''; });
 const saving = ref(false);
 const modalError = ref("");
 const form = ref(emptyForm());
+const originalPaymentStatus = ref('');
 const isApplyingOrderRules = ref(false);
 const orderRuleHint = ref("");
 const selectedOrderItems = ref([]);
@@ -842,6 +865,11 @@ function normalizeOrderStatusValue(value) {
   ) {
     return "RETURNED";
   }
+  if (["PARTIAL_RETURN_REQUEST", "YEU_CAU_HOAN_MOT_PHAN"].includes(key)) return "PARTIAL_RETURN_REQUEST";
+  if (["PARTIAL_RETURNED", "HOAN_MOT_PHAN"].includes(key)) return "PARTIAL_RETURNED";
+  if (["CANCEL_REQUEST", "YEU_CAU_HUY"].includes(key)) {
+    return "CANCEL_REQUEST";
+  }
   if (["CANCELLED", "CANCELED", "DA_HUY", "HUY", "FAILED"].includes(key)) {
     return "CANCELLED";
   }
@@ -874,7 +902,10 @@ const statusOptions = [
   { value: "PROCESSING", label: "Đóng gói và xử lý" },
   { value: "SHIPPING", label: "Đang giao" },
   { value: "SUCCESS", label: "Thành công" },
+  { value: "CANCEL_REQUEST", label: "Yêu cầu hủy" },
   { value: "RETURN_REQUEST", label: "Yêu cầu hoàn" },
+  { value: "PARTIAL_RETURN_REQUEST", label: "Yêu cầu hoàn (1 phần)" },
+  { value: "PARTIAL_RETURNED", label: "Đã hoàn (1 phần)" },
   { value: "RETURNING", label: "Đang hoàn về" },
   { value: "RETURNED", label: "Đã hoàn trả" },
   { value: "CANCELLED", label: "Đã hủy" },
@@ -884,7 +915,13 @@ const availableStatusActions = computed(() => {
   const status = normalizeOrderStatusValue(form.value.status);
   const actions = [];
 
-  if (status === "PENDING") {
+  if (status === "PARTIAL_RETURN_REQUEST") {
+    actions.push({
+      status: "PARTIAL_RETURNED",
+      label: "Xác nhận hoàn (1 phần)",
+      variant: "warning",
+    });
+  } else if (status === "PENDING") {
     actions.push({
       status: "PROCESSING",
       label: "Đóng gói và xử lý",
@@ -1205,7 +1242,7 @@ function resolveManagedOrderState(
   // Prepaid/QR orders should remain paid throughout the fulfillment pipeline.
   if (
     isPrepaid &&
-    ["PENDING", "PROCESSING", "SHIPPING", "SUCCESS"].includes(nextStatus)
+    ["PROCESSING", "SHIPPING", "SUCCESS"].includes(nextStatus)
   ) {
     nextPaymentStatus = "PAID";
   }
@@ -1447,6 +1484,30 @@ function formatOrderItemText(itemLike) {
 
 const selectedOrderDetailedItems = ref([]);
 
+const returnModal = ref({ show: false, orderId: null,  reason: '' });
+
+async function executeAdminReturnOrder() {
+  if (!returnModal.value.reason.trim()) {
+    alert('Vui lòng nhập lý do hoàn trả.');
+    return;
+  }
+  const nextStatus = 'RETURN_REQUEST';
+
+  try {
+    await adminApi.updateOrder(returnModal.value.orderId, {
+      status: nextStatus,
+      returnReason: returnModal.value.reason.trim(),
+      
+    });
+    form.value.status = nextStatus;
+    await loadOrders();
+    showToast('Đã gửi yêu cầu hoàn trả thành công!');
+    returnModal.value.show = false;
+  } catch (e) {
+    alert('Lỗi: ' + (e?.message || e));
+  }
+}
+
 const modalShippingFee = computed(() => {
   if (isPosOrder(form.value)) return 0;
   return 30000;
@@ -1536,6 +1597,8 @@ function statusClass(status) {
   if (["PROCESSING", "SHIPPING"].includes(normalized)) {
     return "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400";
   }
+  if (["PARTIAL_RETURN_REQUEST"].includes(normalized)) return "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300";
+  if (["PARTIAL_RETURNED"].includes(normalized)) return "bg-slate-200 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200";
   if (["RETURN_REQUEST", "RETURNING"].includes(normalized)) {
     return "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300";
   }
@@ -1718,6 +1781,28 @@ function requestStatusChange(newStatus, label) {
     confirmText: "Xác nhận",
     danger: false,
     action: () => applyStatusChange(newStatus),
+  });
+}
+
+function approveCancelRequest() {
+  if (!editingOrderId.value) return;
+  requestConfirm({
+    title: 'Xác nhận hủy đơn',
+    message: `Bạn đồng ý hủy đơn hàng #${editingOrderId.value}? Tồn kho sẽ được cộng lại và đơn chuyển sang "Đã hủy".`,
+    confirmText: 'Xác nhận hủy',
+    danger: true,
+    action: () => applyStatusChange('CANCELLED'),
+  });
+}
+
+function rejectCancelRequest() {
+  if (!editingOrderId.value) return;
+  requestConfirm({
+    title: 'Từ chối yêu cầu hủy',
+    message: `Bạn từ chối yêu cầu hủy đơn #${editingOrderId.value}? Đơn sẽ trở về trạng thái "Chờ xử lý".`,
+    confirmText: 'Từ chối hủy',
+    danger: false,
+    action: () => applyStatusChange('PENDING'),
   });
 }
 
@@ -1990,3 +2075,8 @@ onUnmounted(() => {
   background-color: #1f2937;
 }
 </style>
+
+
+
+
+

@@ -206,6 +206,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref } from "vue";
 import AdminShell from "@/components/admin/AdminShell.vue";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
@@ -221,7 +222,7 @@ const error = ref("");
 const accounts = ref([]);
 const search = ref("");
 const statusFilter = ref("ALL");
-const currentUserRole = ref(localStorage.getItem("userRole") || null);
+const currentUserRole = ref(getSession("userRole") || null);
 const showModal = ref(false);
 const editingAccountId = ref(null);
 const saving = ref(false);

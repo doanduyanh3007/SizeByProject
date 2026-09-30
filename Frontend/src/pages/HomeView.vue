@@ -460,6 +460,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref, onBeforeUnmount } from "vue";
 import axios from "axios";
 
@@ -762,7 +763,7 @@ async function loadPromotions() {
 }
 
 async function loadUserData() {
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getSession("user");
   if (!rawUser) return;
   try {
     const user = JSON.parse(rawUser);

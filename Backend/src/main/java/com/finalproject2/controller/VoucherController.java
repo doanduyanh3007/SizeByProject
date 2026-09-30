@@ -275,17 +275,8 @@ public class VoucherController {
             Voucher voucher = voucherRepo.findById(voucherId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy mã giảm giá ID " + voucherId));
 
-            // Null out voucher reference in all orders that used this voucher
-            // before deleting to avoid FK constraint violation.
-            List<Order> ordersUsingVoucher = orderRepo.findAll().stream()
-                    .filter(o -> o.getVoucher() != null && voucherId.equals(o.getVoucher().getId()))
-                    .toList();
-            for (Order order : ordersUsingVoucher) {
-                order.setVoucher(null);
-                orderRepo.save(order);
-            }
-
-            voucherRepo.delete(voucher);
+            voucher.setIsActive(!Boolean.TRUE.equals(voucher.getIsActive()));
+            voucherRepo.save(voucher);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,

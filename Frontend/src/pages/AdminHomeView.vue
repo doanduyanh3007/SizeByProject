@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <AdminShell>
     <template #header>
       <div class="flex flex-wrap items-start justify-between gap-4">
@@ -72,12 +72,12 @@
 
           <label class="flex min-w-0 flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-[#b9aa9a]">
             Từ ngày
-            <input v-model="startDateInput" type="date" class="rounded-xl border border-slate-900 bg-gray-50 px-3 py-2 text-sm font-medium text-slate-900 dark:border-[#3c342e] dark:bg-[#1f1a17] dark:text-white" />
+            <input v-model="startDateInput" @change="overviewPreset = 'custom'" type="date" class="rounded-xl border border-slate-900 bg-gray-50 px-3 py-2 text-sm font-medium text-slate-900 dark:border-[#3c342e] dark:bg-[#1f1a17] dark:text-white" />
           </label>
 
           <label class="flex min-w-0 flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-[#b9aa9a]">
             Đến ngày
-            <input v-model="endDateInput" type="date" class="rounded-xl border border-slate-900 bg-gray-50 px-3 py-2 text-sm font-medium text-slate-900 dark:border-[#3c342e] dark:bg-[#1f1a17] dark:text-white" />
+            <input v-model="endDateInput" @change="overviewPreset = 'custom'" type="date" class="rounded-xl border border-slate-900 bg-gray-50 px-3 py-2 text-sm font-medium text-slate-900 dark:border-[#3c342e] dark:bg-[#1f1a17] dark:text-white" />
           </label>
 
           <label class="flex min-w-0 flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-[#b9aa9a]">
@@ -115,7 +115,7 @@
         </div>
       </section>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <article v-for="item in summaryCards" :key="item.label" class="retail-card min-w-0 p-5 bg-gradient-to-b from-white to-slate-50 dark:from-[#1f1a17] dark:to-[#181310]">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
@@ -130,62 +130,8 @@
         </article>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-        <section class="retail-card min-w-0 p-5">
-          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div class="min-w-0">
-              <h3 class="text-lg font-semibold">Biểu đồ doanh thu {{ overviewModeText }}</h3>
-              <p class="text-sm text-slate-500 dark:text-[#b9aa9a]">{{ overviewDescription }}</p>
-            </div>
-            <div class="text-right text-sm space-y-2">
-              <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-[#3c342e] dark:bg-[#1f1a17]">
-                <button
-                  v-for="item in overviewMetricOptions"
-                  :key="item.value"
-                  type="button"
-                  class="rounded-lg px-2.5 py-1 text-xs font-semibold transition"
-                  :class="overviewChartMetric === item.value ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-[#b9aa9a] dark:hover:bg-[#2b241f]'"
-                  @click="overviewChartMetric = item.value"
-                >
-                  {{ item.label }}
-                </button>
-              </div>
-              <p class="text-slate-500 dark:text-[#b9aa9a]">{{ overviewMetricHeadline }}</p>
-              <p class="font-semibold text-primary">{{ overviewMetricTotalFormatted }}</p>
-            </div>
-          </div>
-
-          <div class="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-[#b9aa9a]">
-            <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 dark:bg-[#2b241f]"><span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: overviewMetricColor }"></span>{{ overviewMetricLegend }}</span>
-            <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 dark:bg-[#2b241f]">Xu hướng {{ overviewModeText }}</span>
-          </div>
-
-          <div v-if="loading" class="flex items-center justify-center py-16 text-sm text-slate-500 dark:text-[#b9aa9a]">
-            Đang tổng hợp dữ liệu...
-          </div>
-
-          <div v-else>
-            <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-4 dark:border-[#3c342e] dark:from-[#1f1a17] dark:to-[#181310]">
-              <svg :viewBox="`0 0 ${chartSvgWidth} 240`" :style="{ minWidth: `${chartSvgWidth}px` }" class="h-[250px] w-full">
-                <line x1="24" y1="200" :x2="chartSvgWidth - 24" y2="200" stroke="rgba(148,163,184,0.35)" stroke-width="1" />
-                <line x1="24" y1="24" x2="24" y2="200" stroke="rgba(148,163,184,0.2)" stroke-width="1" />
-                <g v-for="bar in overviewBarSeries" :key="bar.key">
-                  <rect :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" rx="6" :fill="bar.fill" opacity="0.88">
-                    <title>{{ bar.label }} ({{ bar.sublabel }}): {{ bar.valueFormatted }}</title>
-                  </rect>
-                  <text :x="bar.x + bar.width / 2" y="220" text-anchor="middle" fill="currentColor" class="fill-slate-600 font-semibold text-[11px] dark:fill-[#b9aa9a]">
-                    {{ bar.label }}
-                  </text>
-                </g>
-                <path :d="overviewTrendPath" fill="none" :stroke="overviewMetricColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                <g v-for="point in overviewLinePoints" :key="point.key">
-                  <circle :cx="point.x" :cy="point.y" r="4.5" fill="#fff" :stroke="overviewMetricColor" stroke-width="2.5" />
-                </g>
-              </svg>
-            </div>
-          </div>
-        </section>
-
+      <!-- Tóm tắt kỳ kế toán + Top SP bán chạy -->
+      <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section class="retail-card min-w-0 p-5">
           <div class="mb-4">
             <h3 class="text-lg font-semibold">Tóm tắt kỳ kế toán</h3>
@@ -203,10 +149,6 @@
                   <td class="px-4 py-3 text-slate-500 dark:text-[#b9aa9a]">Hoàn tiền</td>
                   <td class="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">-{{ formatCurrency(overviewRefundRevenue) }}</td>
                 </tr>
-                <tr class="border-b border-slate-200 bg-slate-50 dark:border-[#3c342e] dark:bg-[#181310]">
-                  <td class="px-4 py-3 font-semibold">Doanh thu ròng</td>
-                  <td class="px-4 py-3 text-right font-bold" :class="overviewNetRevenue >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'">{{ formatCurrency(overviewNetRevenue) }}</td>
-                </tr>
                 <tr class="border-b border-slate-200 dark:border-[#3c342e]">
                   <td class="px-4 py-3 text-slate-500 dark:text-[#b9aa9a]">Tỷ lệ hoàn tiền</td>
                   <td class="px-4 py-3 text-right font-semibold">{{ overviewRefundRate }}%</td>
@@ -219,88 +161,8 @@
             </table>
           </div>
 
-          <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-[#3c342e] dark:bg-[#181310]">
-            <p class="font-medium">Điểm nhấn kỳ này</p>
-            <p class="mt-1 text-slate-500 dark:text-[#b9aa9a]">
-              {{ currentOverviewBucket.sublabel }} có doanh thu ròng {{ formatCurrency(currentOverviewBucket.netRevenue) }}, chênh lệch {{ overviewDelta >= 0 ? '+' : '' }}{{ formatCurrency(overviewDelta) }} so với mốc cuối kỳ.
-            </p>
-          </div>
         </section>
 
-        <!-- PHÂN BỐ TRẠNG THÁI ĐƠN HÀNG (MATCHING IMAGE 2) -->
-        <section class="retail-card min-w-0 p-5">
-          <div class="mb-4 flex items-center justify-between">
-            <div>
-              <h3 class="text-lg font-bold">Phân bố trạng thái đơn</h3>
-              <p class="text-xs text-slate-500 dark:text-[#b9aa9a]">Tỷ lệ và cơ cấu các trạng thái đơn hàng trong kỳ</p>
-            </div>
-            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-[#2b241f] dark:text-slate-300">
-              {{ orderStatusStats.total }} đơn
-            </span>
-          </div>
-
-          <div v-if="orderStatusStats.total === 0" class="flex h-48 items-center justify-center text-sm text-slate-400">
-            Không có đơn hàng trong khoảng đã chọn.
-          </div>
-
-          <div v-else class="space-y-6">
-            <!-- Donut Chart SVG -->
-            <div class="flex justify-center items-center py-2">
-              <div class="relative size-44">
-                <svg viewBox="0 0 160 160" class="size-full -rotate-90">
-                  <circle cx="80" cy="80" r="55" fill="none" stroke="#f1f5f9" stroke-width="24" class="dark:stroke-[#2b241f]" />
-                  <circle
-                    v-for="(seg, idx) in orderStatusStats.donutSegments"
-                    :key="idx"
-                    cx="80"
-                    cy="80"
-                    r="55"
-                    fill="none"
-                    :stroke="seg.color"
-                    stroke-width="24"
-                    :stroke-dasharray="seg.strokeDasharray"
-                    :stroke-dashoffset="seg.strokeDashoffset"
-                    class="transition-all duration-500"
-                  />
-                </svg>
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">TỔNG</span>
-                  <span class="text-2xl font-black text-slate-900 dark:text-white">{{ orderStatusStats.total }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Legend breakdown list with dot, name and count (percent) -->
-            <div class="grid gap-2 text-xs">
-              <div
-                v-for="item in orderStatusStats.items"
-                :key="item.key"
-                class="flex items-center justify-between rounded-lg border border-slate-100 p-2 dark:border-[#2b241f]"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="size-2.5 rounded-full shrink-0" :style="{ backgroundColor: item.color }"></span>
-                  <span class="font-medium text-slate-700 dark:text-[#e6d7c8]">{{ item.label }}</span>
-                </div>
-                <span class="font-bold text-slate-900 dark:text-white">
-                  {{ item.count }} ({{ item.percentage }}%)
-                </span>
-              </div>
-            </div>
-
-            <!-- Horizontal percentage bars -->
-            <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-[#2b241f]">
-              <div v-for="item in orderStatusStats.items" :key="`bar-${item.key}`" class="space-y-1">
-                <div class="flex justify-between text-[11px]">
-                  <span class="text-slate-500 dark:text-[#b9aa9a]">{{ item.label }}</span>
-                  <span class="font-bold">{{ item.percentage }}%</span>
-                </div>
-                <div class="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-[#2b241f]">
-                  <div class="h-full rounded-full transition-all duration-500" :style="{ width: `${item.percentage}%`, backgroundColor: item.color }"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
         <!-- TOP SẢN PHẨM BÁN CHẠY -->
         <section class="retail-card min-w-0 p-5">
           <div class="mb-4 flex items-center justify-between">
@@ -377,9 +239,86 @@
         </section>
       </div>
 
-      <!-- DANH SÁCH ĐƠN HÀNG CHỜ XỬ LÝ -->
-      <div class="grid grid-cols-1">
-        <section class="retail-card min-w-0 p-5">
+      <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <!-- PHÂN BỐ TRẠNG THÁI ĐƠN HÀNG -->
+        <section class="retail-card min-w-0 p-5 flex flex-col">
+          <div class="mb-4 flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold">Phân bố trạng thái đơn</h3>
+              <p class="text-xs text-slate-500 dark:text-[#b9aa9a]">Tỷ lệ và cơ cấu các trạng thái đơn hàng trong kỳ</p>
+            </div>
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-[#2b241f] dark:text-slate-300">
+              {{ orderStatusStats.total }} đơn
+            </span>
+          </div>
+
+          <div v-if="orderStatusStats.total === 0" class="flex flex-1 items-center justify-center text-sm text-slate-400">
+            Không có đơn hàng trong khoảng đã chọn.
+          </div>
+
+          <div v-else class="grid grid-cols-1 gap-6 xl:grid-cols-[auto_1fr] flex-1">
+            <!-- Donut Chart SVG -->
+            <div class="flex justify-center items-center py-2">
+              <div class="relative size-44">
+                <svg viewBox="0 0 160 160" class="size-full -rotate-90">
+                  <circle cx="80" cy="80" r="55" fill="none" stroke="#f1f5f9" stroke-width="24" class="dark:stroke-[#2b241f]" />
+                  <circle
+                    v-for="(seg, idx) in orderStatusStats.donutSegments"
+                    :key="idx"
+                    cx="80"
+                    cy="80"
+                    r="55"
+                    fill="none"
+                    :stroke="seg.color"
+                    stroke-width="24"
+                    :stroke-dasharray="seg.strokeDasharray"
+                    :stroke-dashoffset="seg.strokeDashoffset"
+                    class="transition-all duration-500"
+                  />
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">TỔNG</span>
+                  <span class="text-2xl font-black text-slate-900 dark:text-white">{{ orderStatusStats.total }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <!-- Legend breakdown list -->
+              <div class="grid gap-2 text-xs">
+                <div
+                  v-for="item in orderStatusStats.items"
+                  :key="item.key"
+                  class="flex items-center justify-between rounded-lg border border-slate-100 p-2 dark:border-[#2b241f]"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="size-2.5 rounded-full shrink-0" :style="{ backgroundColor: item.color }"></span>
+                    <span class="font-medium text-slate-700 dark:text-[#e6d7c8]">{{ item.label }}</span>
+                  </div>
+                  <span class="font-bold text-slate-900 dark:text-white">
+                    {{ item.count }} ({{ item.percentage }}%)
+                  </span>
+                </div>
+              </div>
+
+              <!-- Horizontal percentage bars -->
+              <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-[#2b241f]">
+                <div v-for="item in orderStatusStats.items" :key="`bar-${item.key}`" class="space-y-1">
+                  <div class="flex justify-between text-[11px]">
+                    <span class="text-slate-500 dark:text-[#b9aa9a]">{{ item.label }}</span>
+                    <span class="font-bold">{{ item.percentage }}%</span>
+                  </div>
+                  <div class="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-[#2b241f]">
+                    <div class="h-full rounded-full transition-all duration-500" :style="{ width: `${item.percentage}%`, backgroundColor: item.color }"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DANH SÁCH ĐƠN HÀNG CHỜ XỬ LÝ -->
+        <section class="retail-card min-w-0 p-5 flex flex-col">
           <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="flex size-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
@@ -401,14 +340,14 @@
             </router-link>
           </div>
 
-          <div v-if="pendingOrders.length === 0" class="flex h-48 flex-col items-center justify-center text-center text-slate-400">
+          <div v-if="pendingOrders.length === 0" class="flex flex-1 flex-col items-center justify-center text-center text-slate-400 min-h-[200px]">
             <span class="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
             <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Tuyệt vời! Không có đơn hàng nào đang chờ xử lý.</p>
           </div>
 
-          <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div v-else class="flex flex-col gap-3 flex-1">
             <div
-              v-for="order in pendingOrders"
+              v-for="order in paginatedPendingOrders"
               :key="order.id"
               class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-slate-300 hover:bg-slate-50 dark:border-[#2b241f] dark:hover:border-[#4c4138] dark:hover:bg-[#2b241f]/50"
             >
@@ -432,7 +371,7 @@
 
               <div class="text-right shrink-0">
                 <p class="text-sm font-black text-primary">
-                  {{ formatCurrency(order.totalAmount || order.total || 0) }}
+                  {{ formatCurrency(order.finalAmount || order.totalMoney || order.totalAmount || order.total || 0) }}
                 </p>
                 <router-link
                   :to="`/admin/orders`"
@@ -442,6 +381,12 @@
                   <span class="material-symbols-outlined text-[13px]">arrow_forward</span>
                 </router-link>
               </div>
+            </div>
+
+            <div class="mt-auto pt-4 flex items-center justify-between border-t border-slate-100 dark:border-[#2b241f]" v-if="totalPendingPages > 1">
+              <button @click="prevPendingPage" :disabled="pendingOrdersCurrentPage === 1" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 dark:border-[#3c342e] dark:bg-[#1f1a17]">Trước</button>
+              <span class="text-xs font-medium text-slate-500">Trang {{ pendingOrdersCurrentPage }} / {{ totalPendingPages }}</span>
+              <button @click="nextPendingPage" :disabled="pendingOrdersCurrentPage === totalPendingPages" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 dark:border-[#3c342e] dark:bg-[#1f1a17]">Sau</button>
             </div>
           </div>
         </section>
@@ -550,8 +495,6 @@ watch([startDateInput, endDateInput], () => {
   if (selectedStartDate.value.getTime() > selectedEndDate.value.getTime()) {
     endDateInput.value = startDateInput.value;
   }
-
-  overviewPreset.value = "custom";
 });
 
 function applyOverviewPreset(preset) {
@@ -773,14 +716,6 @@ const summaryCards = computed(() => {
 
   return [
     {
-      label: "Tổng doanh thu ròng trong khoảng",
-      value: formatCurrency(overviewNetRevenue.value),
-      note: selectedRangeText.value,
-      icon: "insights",
-      iconBg: "bg-green-100 dark:bg-green-900/20",
-      iconColor: "text-green-600 dark:text-green-400",
-    },
-    {
       label: "Doanh thu POS",
       value: formatCurrency(overviewNetRevenuePOS.value),
       note: "Đơn tại quầy",
@@ -946,8 +881,29 @@ const pendingOrders = computed(() => {
       const s = String(o.status || "").toUpperCase();
       return pendingStatuses.includes(s) || s.includes("PENDING") || s.includes("CHO");
     })
-    .sort((a, b) => new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0))
-    .slice(0, 6);
+    .sort((a, b) => new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0));
+});
+
+const pendingOrdersCurrentPage = ref(1);
+const PENDING_ORDERS_PER_PAGE = 3;
+
+const paginatedPendingOrders = computed(() => {
+  const start = (pendingOrdersCurrentPage.value - 1) * PENDING_ORDERS_PER_PAGE;
+  return pendingOrders.value.slice(start, start + PENDING_ORDERS_PER_PAGE);
+});
+
+const totalPendingPages = computed(() => Math.ceil(pendingOrders.value.length / PENDING_ORDERS_PER_PAGE));
+
+function nextPendingPage() {
+  if (pendingOrdersCurrentPage.value < totalPendingPages.value) pendingOrdersCurrentPage.value++;
+}
+
+function prevPendingPage() {
+  if (pendingOrdersCurrentPage.value > 1) pendingOrdersCurrentPage.value--;
+}
+
+watch(pendingOrders, () => {
+  pendingOrdersCurrentPage.value = 1;
 });
 
 function formatShortDate(value) {

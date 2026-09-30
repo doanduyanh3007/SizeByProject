@@ -10,4 +10,5 @@ public class ColorResponse {
     private String name;
     private String hexCode;
     private String hexCode1;
+    private Boolean isDeleted;
 }

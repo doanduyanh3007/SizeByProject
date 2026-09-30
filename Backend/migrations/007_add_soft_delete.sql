@@ -1,0 +1,4 @@
+ALTER TABLE Brands ADD is_deleted BIT DEFAULT 0;
+ALTER TABLE Categories ADD is_deleted BIT DEFAULT 0;
+ALTER TABLE Colors ADD is_deleted BIT DEFAULT 0;
+ALTER TABLE Sizes ADD is_deleted BIT DEFAULT 0;

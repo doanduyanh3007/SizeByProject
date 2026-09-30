@@ -34,4 +34,14 @@ public class OrderItem {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
+    @Column(name = "return_quantity")
+    private Integer returnQuantity = 0;
+
+    @Column(name = "return_status", length = 50)
+    private String returnStatus = "NONE";
+
+    public Integer getReturnQuantity() { return returnQuantity; }
+    public void setReturnQuantity(Integer returnQuantity) { this.returnQuantity = returnQuantity; }
+    public String getReturnStatus() { return returnStatus; }
+    public void setReturnStatus(String returnStatus) { this.returnStatus = returnStatus; }
 }

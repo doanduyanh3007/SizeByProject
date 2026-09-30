@@ -384,12 +384,52 @@
                     placeholder="NHẬP MÃ VOUCHER..."
                     class="w-full bg-transparent text-sm font-semibold uppercase outline-none dark:text-white placeholder:text-slate-400"
                   />
+                  <button
+                    v-if="activeInvoice.voucherInput"
+                    @click="removeVoucher"
+                    class="ml-1 text-slate-400 hover:text-red-500 transition-colors"
+                    title="Xóa mã"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                  </button>
                 </div>
                 <button
+                  v-if="!activeInvoice.appliedVoucher"
                   @click="applyVoucherByInput"
                   class="rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-800 shadow-sm transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary dark:border-[#4c4138] dark:bg-[#2b241f] dark:text-slate-200"
                 >
                   Áp dụng
+                </button>
+                <button
+                  v-else
+                  @click="removeVoucher"
+                  class="flex items-center gap-1 rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 shadow-sm transition-colors hover:bg-red-100 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400"
+                >
+                  <span class="material-symbols-outlined text-[16px]">close</span>
+                  Gỡ
+                </button>
+              </div>
+
+              
+              <!-- Chip voucher đang áp dụng -->
+              <div
+                v-if="activeInvoice.appliedVoucher"
+                class="mt-2 flex items-center justify-between rounded-xl border border-primary bg-primary/5 px-3 py-2 dark:border-primary/50 dark:bg-primary/10"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-primary text-[16px]">local_offer</span>
+                  <span class="text-sm font-bold text-primary">{{ activeInvoice.appliedVoucher.code }}</span>
+                  <span class="text-xs text-slate-500 dark:text-[#b9aa9a]">
+                    – {{ formatMoney(activeDiscount) }}
+                  </span>
+                </div>
+                <button
+                  @click="removeVoucher"
+                  class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                  title="Gỡ mã giảm giá"
+                >
+                  <span class="material-symbols-outlined text-[15px]">close</span>
+                  Gỡ
                 </button>
               </div>
 
@@ -464,10 +504,17 @@
                   <span>Tạm tính:</span>
                   <span class="font-bold text-slate-900 dark:text-white">{{ formatMoney(activeSubtotal) }}</span>
                 </div>
-                <div
-                  v-if="activeDiscount > 0"
-                  class="flex items-center justify-between text-green-600 dark:text-green-400"
-                >
+                                  <div
+                    v-if="promotionDiscountAmount > 0"
+                    class="flex items-center justify-between text-orange-600 dark:text-orange-400"
+                  >
+                    <span>Khuyến mãi:</span>
+                    <span class="font-bold">- {{ formatMoney(promotionDiscountAmount) }}</span>
+                  </div>
+                  <div
+                    v-if="activeDiscount > 0"
+                    class="flex items-center justify-between text-green-600 dark:text-green-400"
+                  >
                   <span>Giảm giá:</span>
                   <span class="font-bold">- {{ formatMoney(activeDiscount) }}</span>
                 </div>
@@ -680,6 +727,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { ref, computed, onMounted, watch } from "vue";
 import axios from "axios";
 import { adminApi, colorsApi, sizesApi } from "@/services/api";
@@ -762,6 +810,37 @@ const {
   nextPage: posCartNextPage,
 } = usePagination(activeCartItems, 10);
 
+
+const activePromotions = ref([]);
+async function loadActivePromotions() {
+  try {
+    const response = await axios.get("http://localhost:8080/api/promotions?page=0&size=200");
+    const payload = response.data;
+    const rows = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+    activePromotions.value = rows.filter((promotion) => promotion.status === "ACTIVE");
+  } catch (error) {
+    console.error("Lỗi khi tải khuyến mãi:", error);
+    activePromotions.value = [];
+  }
+}
+function getPromotionPercentForItem(item) {
+  const productId = Number(item?.productId || item?.product_id || item?.product?.id || item?.id);
+  if (!Number.isFinite(productId)) return 0;
+  return activePromotions.value.reduce((best, promotion) => {
+    const ids = promotion.productIds || promotion.products?.map((p) => p.id) || [];
+    return ids.some((id) => Number(id) === productId)
+      ? Math.max(best, Number(promotion.discountPercent || 0))
+      : best;
+  }, 0);
+}
+const promotionDiscountAmount = computed(() => {
+  if (!activeInvoice.value) return 0;
+  return activeInvoice.value.cart.reduce((totalAmount, item) => {
+    const percent = getPromotionPercentForItem(item);
+    return totalAmount + (Number(item.price || 0) * Number(item.quantity || 0) * percent) / 100;
+  }, 0);
+});
+
 const activeSubtotal = computed(() => {
   if (!activeInvoice.value) return 0;
   return activeInvoice.value.cart.reduce(
@@ -785,11 +864,12 @@ const processedVouchers = computed(() => {
     })
     .map((v) => {
       const minOrder = v.minOrderValue || v.min_order_value || 0;
-      const isEligible = activeSubtotal.value >= minOrder;
+      const baseForVoucher = activeSubtotal.value - promotionDiscountAmount.value;
+      const isEligible = baseForVoucher >= minOrder;
 
       let calculatedDiscount = 0;
       if (isEligible) {
-        calculatedDiscount = computeVoucherDiscount(v, activeSubtotal.value);
+        calculatedDiscount = computeVoucherDiscount(v, baseForVoucher);
       }
 
       const isApplied =
@@ -820,7 +900,7 @@ const activeDiscount = computed(() => {
   if (!activeInvoice.value || !activeInvoice.value.appliedVoucher) return 0;
   return computeVoucherDiscount(
     activeInvoice.value.appliedVoucher,
-    activeSubtotal.value,
+    activeSubtotal.value - promotionDiscountAmount.value,
   );
 });
 
@@ -829,7 +909,7 @@ const activeShipping = computed(() => 0);
 const activeTotal = computed(() => {
   return Math.max(
     0,
-    activeSubtotal.value - activeDiscount.value,
+    activeSubtotal.value - promotionDiscountAmount.value - activeDiscount.value,
   );
 });
 
@@ -851,6 +931,7 @@ watch([activeSubtotal, processedVouchers], ([newVal]) => {
 }, { immediate: true });
 
 onMounted(async () => {
+  await loadActivePromotions();
   try {
     try {
       // POS uses phone-only voucher validation
@@ -913,6 +994,7 @@ onMounted(async () => {
       return {
         ...v,
         variantId: v.id || Math.random(),
+        productId: pId,
         productName: pName,
         productCode:
           v.productCode ||
@@ -1014,6 +1096,7 @@ const addToCart = (variant) => {
   } else {
     cart.push({
       variantId: variant.variantId,
+      productId: variant.productId || variant.product_id || variant.id,
       productName: variant.productName,
       productCode: variant.productCode, // Lưu mã để in
       colorName: variant.colorName,
@@ -1222,7 +1305,7 @@ const handlePlaceOrder = async () => {
     // --- VÁ LỖI 1: LẤY ID NGƯỜI BÁN ĐỂ TRÁNH LỖI NULL TRANSACTION ---
     let adminId = 1; // Mặc định là 1 nếu không lấy được
     try {
-      const userStr = localStorage.getItem("user");
+      const userStr = getSession("user");
       if (userStr) {
         const userObj = JSON.parse(userStr);
         adminId = userObj.id || userObj.accountId || userObj.account_id || 1;
@@ -1237,6 +1320,8 @@ const handlePlaceOrder = async () => {
       email: inv.customer.email || "khachle@sizeby.com",
       shippingAddress: "Mua trực tiếp tại cửa hàng",
       paymentMethodId: resolveEffectivePaymentMethodId(inv),
+      promotionDiscountAmount: promotionDiscountAmount.value,
+      promotion_discount_amount: promotionDiscountAmount.value,
       voucherCode: inv.appliedVoucher ? inv.appliedVoucher.code : null, // VÁ LỖI 2: CHUYỀN MÃ VOUCHER
       shippingFee: 0, // Đơn tại quầy không tính phí vận chuyển
       items: inv.cart.map((item) => ({
@@ -1247,7 +1332,7 @@ const handlePlaceOrder = async () => {
       })),
     };
 
-    const token = localStorage.getItem("token");
+    const token = getSession("token");
     const reqHeaders = {
       Authorization: token ? `Bearer ${token}` : "",
       "Content-Type": "application/json",

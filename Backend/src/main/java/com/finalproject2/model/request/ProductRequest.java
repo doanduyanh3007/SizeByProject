@@ -20,7 +20,7 @@ public class ProductRequest {
     private Long categoryId;
     @NotNull
     private Long brandId;
-    @Size(max = 2048)
+    @Size(max = 2147483647, message = "Kích thước ảnh vượt quá giới hạn cho phép")
     private String imageUrl;
     private String status;
     private String galleryImages;

@@ -443,10 +443,27 @@
         </div>
       </main>
     </div>
+  
+    <!-- Toast Notification -->
+    <transition name="slide-up">
+      <div
+        v-if="toastMessage"
+        :class="[
+          'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-white font-semibold text-sm transition-all',
+          toastType === 'success' ? 'bg-green-600' : 'bg-red-500'
+        ]"
+      >
+        <span class="material-symbols-outlined text-[22px]">
+          {{ toastType === 'success' ? 'check_circle' : 'error' }}
+        </span>
+        {{ toastMessage }}
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCartStore } from "@/stores/cart";
@@ -471,6 +488,17 @@ const productStore = useProductStore();
 const cartStore = useCartStore();
 const reviewsStore = useReviewsStore();
 const compareStore = useCompareStore();
+
+const toastMessage = ref("");
+const toastType = ref("success");
+let toastTimer = null;
+
+function showToast(msg, type = "success") {
+  toastMessage.value = msg;
+  toastType.value = type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastMessage.value = ""; }, 3000);
+}
 
 const activeImageIndex = ref(0);
 const selectedColorKey = ref("");
@@ -886,7 +914,7 @@ async function load() {
   activeImageIndex.value = 0;
 }
 
-function handleAddToCart() {
+async function handleAddToCart() {
   if (!canAddToCart.value) return;
 
   if (!isLoggedIn.value) {
@@ -894,13 +922,13 @@ function handleAddToCart() {
     return;
   }
 
-  const added = cartStore.addToCart(product.value, selectedVariant.value, 1);
+  const added = await cartStore.addToCart(product.value, selectedVariant.value, 1);
   if (added === false) {
     showAuthRequiredPopup.value = true;
     return;
   }
 
-  router.push("/cart");
+  showToast("Đã thêm vào giỏ hàng thành công!");
 }
 
 function handleCompare() {
@@ -910,7 +938,7 @@ function handleCompare() {
 }
 
 function checkLoginStatus() {
-  const user = localStorage.getItem("user");
+  const user = getSession("user");
 
   let parsedUser = null;
   if (user) {

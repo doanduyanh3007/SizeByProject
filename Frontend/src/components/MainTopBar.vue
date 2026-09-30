@@ -44,7 +44,7 @@
           >
 
           <router-link
-            v-if="isAdmin"
+            v-if="isAdmin || isStaff"
             to="/admin"
             class="transition-colors hover:text-zinc-900"
           >
@@ -54,6 +54,75 @@
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- SEARCH BAR WITH DROPDOWN -->
+        <div class="relative hidden sm:block" ref="searchContainerRef">
+          <form @submit.prevent="onSearch" class="relative">
+            <input
+              v-model="searchQuery"
+              @focus="showSearchDropdown = true"
+              @input="showSearchDropdown = true"
+              type="text"
+              placeholder="Tìm kiếm sản phẩm..."
+              class="h-10 w-56 rounded-full border border-zinc-200 bg-zinc-50 pl-4 pr-10 text-sm outline-none transition-colors focus:border-zinc-400 focus:bg-white focus:w-72 transition-[width]"
+            />
+            <button
+              type="submit"
+              class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-zinc-400 hover:text-zinc-600"
+            >
+              <span class="material-symbols-outlined text-[18px]">search</span>
+            </button>
+          </form>
+
+          <!-- SEARCH DROPDOWN -->
+          <div
+            v-if="showSearchDropdown && searchQuery && typeof searchQuery === 'string' && searchQuery.trim() && searchResults.length > 0"
+            class="absolute top-12 left-0 w-full bg-white border border-zinc-200 rounded-2xl shadow-lg z-50 overflow-hidden max-h-80 overflow-y-auto"
+          >
+            <router-link
+              v-for="product in searchResults"
+              :key="product.id"
+              :to="`/product/${product.id}`"
+              class="flex items-center gap-3 p-3 hover:bg-zinc-50 transition-colors border-b border-zinc-100 last:border-0"
+              @click="closeSearch"
+            >
+              <div class="h-12 w-12 bg-zinc-100 rounded-lg overflow-hidden flex-shrink-0">
+                <img
+                  v-if="product.image"
+                  :src="product.image"
+                  :alt="product.name"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center text-zinc-400"
+                >
+                  <span class="material-symbols-outlined text-xl">image</span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <p class="text-sm font-semibold text-zinc-800 truncate">{{ product.name }}</p>
+                <p class="text-xs text-primary font-medium mt-0.5">{{ formatCurrency(product.price) }}</p>
+              </div>
+            </router-link>
+
+            <!-- Xem tất cả kết quả -->
+            <button
+              class="w-full py-2.5 text-xs font-semibold text-primary hover:bg-zinc-50 text-center transition-colors"
+              @click="onSearch"
+            >
+              Xem tất cả kết quả cho "{{ searchQuery }}"
+            </button>
+          </div>
+
+          <!-- No results -->
+          <div
+            v-else-if="showSearchDropdown && searchQuery && typeof searchQuery === 'string' && searchQuery.trim() && searchResults.length === 0 && productsLoaded"
+            class="absolute top-12 left-0 w-full bg-white border border-zinc-200 rounded-2xl shadow-lg z-50 p-4 text-center text-sm text-zinc-500"
+          >
+            Không tìm thấy sản phẩm nào
+          </div>
+        </div>
+
         <router-link
           to="/wishlist"
           class="flex size-10 items-center justify-center rounded-full bg-slate-100 transition-colors dark:bg-[#2b241f] relative"
@@ -127,6 +196,12 @@
               >
                 Đơn hàng của tôi
               </router-link>
+              <router-link
+                to="/warranty"
+                class="block rounded-xl px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                Kiểm tra bảo hành
+              </router-link>
               <button
                 type="button"
                 class="rounded-xl px-4 py-3 text-left font-medium text-red-600 hover:bg-red-50"
@@ -151,16 +226,89 @@
 </template>
 
 <script setup>
+import { getSession, clearSession } from "@/utils/auth";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { useCartStore } from "@/stores/cart";
+import { useProductStore } from "@/stores/products";
 import { resolveBackendAssetUrl } from "@/services/api";
 
 const cartStore = useCartStore();
+const productStore = useProductStore();
 const route = useRoute();
 const router = useRouter();
 
+// ===== SEARCH =====
+const searchQuery = ref("");
+const showSearchDropdown = ref(false);
+const searchContainerRef = ref(null);
+const productsLoaded = ref(false);
+
+function getLowestPriceForProduct(productId) {
+  const id = Number(productId);
+  const variants = productStore.variants.filter(
+    (v) => Number(v.productId) === id && v.status === 'SELLING'
+  );
+  let minPrice = null;
+  for (const v of variants) {
+    const price = Number(v.price);
+    if (Number.isFinite(price) && price > 0) {
+      if (minPrice === null || price < minPrice) minPrice = price;
+    }
+  }
+  return minPrice;
+}
+
+const searchResults = computed(() => {
+  if (!searchQuery.value || typeof searchQuery.value !== "string" || !searchQuery.value.trim()) return [];
+  const query = searchQuery.value.toLowerCase().trim();
+  return productStore.products
+    .filter((p) => p.name && p.name.toLowerCase().includes(query))
+    .slice(0, 6)
+    .map((p) => {
+      const variantPrice = getLowestPriceForProduct(p.id);
+      let price = variantPrice; if (price === null) price = Number.isFinite(Number(p.price)) ? Number(p.price) : 0;
+      return {
+        id: p.id,
+        name: p.name,
+        price: Number.isFinite(price) ? price : 0,
+        image: p.imageUrl || null,
+      };
+    });
+});
+
+function formatCurrency(value) {
+  if (!value) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(value);
+}
+
+function onSearch() {
+  if (searchQuery.value && typeof searchQuery.value === "string" && searchQuery.value.trim()) {
+    showSearchDropdown.value = false;
+    router.push({ path: "/shop", query: { search: searchQuery.value.trim() } });
+    searchQuery.value = "";
+  }
+}
+
+function closeSearch() {
+  showSearchDropdown.value = false;
+  searchQuery.value = "";
+}
+
+function handleClickOutsideSearch(event) {
+  if (
+    searchContainerRef.value &&
+    !searchContainerRef.value.contains(event.target)
+  ) {
+    showSearchDropdown.value = false;
+  }
+}
+
+// ===== USER MENU =====
 const showUserMenu = ref(false);
 const isLoggedIn = ref(false);
 const userName = ref("Khách SizeBy");
@@ -182,23 +330,21 @@ const userInitials = computed(() => {
 });
 
 function normalizeAvatarUrl(rawUrl) {
-  if (!rawUrl || typeof rawUrl !== "string") {
-    return "";
-  }
-
+  if (!rawUrl || typeof rawUrl !== "string") return "";
   const fixedUrl = rawUrl.replace(
-    /^https?:\/\/[^/]+\/?(https?:\/\/.+)$/i,
+    /^https?:\/\/[^/]+\/?(https?:\/.+)$/i,
     "$1",
   );
-
   return resolveBackendAssetUrl(fixedUrl) || "";
 }
 
-const resolvedUserAvatar = computed(() => normalizeAvatarUrl(userAvatar.value));
+const resolvedUserAvatar = computed(() =>
+  normalizeAvatarUrl(userAvatar.value),
+);
 
 function syncSession() {
-  const rawUser = localStorage.getItem("user");
-  const token = localStorage.getItem("token");
+  const rawUser = getSession("user");
+  const token = getSession("token");
 
   if (!rawUser && !token) {
     isLoggedIn.value = false;
@@ -241,20 +387,58 @@ function handleOutsideClick(event) {
 }
 
 function handleLogout() {
-  localStorage.removeItem("user");
-  localStorage.removeItem("token");
+  clearSession();
+  // Reset reactive state ngay lập tức, không chờ watcher
+  isLoggedIn.value = false;
   showUserMenu.value = false;
-  syncSession();
+  userName.value = "Khách SizeBy";
+  userEmail.value = "";
+  userAvatar.value = "";
   router.push("/login");
 }
 
-onMounted(() => {
+const isAdmin = computed(() => {
+  try {
+    const rawUser = getSession("user");
+    if (!rawUser) return getSession("userRole") === "ADMIN";
+    const parsed = JSON.parse(rawUser);
+    return (parsed.role || getSession("userRole")) === "ADMIN";
+  } catch {
+    return false;
+  }
+});
+
+const isStaff = computed(() => {
+  try {
+    const rawUser = getSession("user");
+    if (!rawUser) return getSession("userRole") === "STAFF";
+    const parsed = JSON.parse(rawUser);
+    return (parsed.role || getSession("userRole")) === "STAFF";
+  } catch {
+    return false;
+  }
+});
+
+// ===== LIFECYCLE =====
+onMounted(async () => {
   syncSession();
   window.addEventListener("click", handleOutsideClick);
+  document.addEventListener("click", handleClickOutsideSearch);
+  try {
+    const fetches = [];
+    if (productStore.products.length === 0) fetches.push(productStore.fetchProducts());
+    if (productStore.variants.length === 0) fetches.push(productStore.fetchVariants());
+    if (fetches.length > 0) await Promise.all(fetches);
+  } catch {
+    // ignore
+  } finally {
+    productsLoaded.value = true;
+  }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("click", handleOutsideClick);
+  document.removeEventListener("click", handleClickOutsideSearch);
 });
 
 watch(
@@ -264,9 +448,4 @@ watch(
     syncSession();
   },
 );
-
-const isAdmin = computed(() => {
-  const role = localStorage.getItem("userRole");
-  return role === "ADMIN";
-});
 </script>

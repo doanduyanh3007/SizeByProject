@@ -1,7 +1,9 @@
-﻿/**
+/**
  * API Service - Handles all backend API calls
  * Base URL should be configured based on your backend server address
  */
+
+import { getSession } from "@/utils/auth";
 
 export const API_BASE_URL =
     import.meta.env.VITE_API_URL || "http://localhost:8080/api";
@@ -87,7 +89,7 @@ async function apiCall(endpoint, options = {}) {
             ...options.headers,
         };
 
-        const token = localStorage.getItem("token");
+        const token = getSession("token");
         if (token) {
             headers["Authorization"] = `Bearer ${token}`;
         }

@@ -44,17 +44,16 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     public List<BrandResponse> getAll() {
-        return repo.findAll().stream().map(e -> MapperUtil.map(e, BrandResponse.class)).collect(Collectors.toList());
+        return repo.findAll().stream()
+                .map(e -> MapperUtil.map(e, BrandResponse.class))
+                .collect(Collectors.toList());
     }
 
     @Override
     public void delete(Long id) {
         Brand b = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy thương hiệu"));
-        try {
-            repo.delete(b);
-        } catch (DataIntegrityViolationException e) {
-            throw new BadRequestException("Không thể xóa! Đang có sản phẩm thuộc thương hiệu này.");
-        }
+        b.setIsDeleted(!Boolean.TRUE.equals(b.getIsDeleted()));
+        repo.save(b);
     }
 }

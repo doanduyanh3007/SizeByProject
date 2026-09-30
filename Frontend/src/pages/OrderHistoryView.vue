@@ -398,7 +398,7 @@
         >
           <button
             type="button"
-            class="absolute inset-0 bg-black/45 backdrop-blur-sm"
+            class="absolute inset-0 bg-black/45"
             aria-label="Đóng chi tiết đơn hàng"
             @click="closeOrderDetails"
           />
@@ -513,9 +513,21 @@
                       class="mt-1 text-sm font-semibold text-slate-900 dark:text-white"
                     >
                       {{ getOrderRecipient(activeDetailOrder) }}
-                    </p>
-                  </article>
-                </div>
+                      </p>
+                    </article>
+                    <article
+                      v-if="getOrderStatusCategory(activeDetailOrder.status) === 'completed'"
+                      class="rounded-2xl border border-green-200/70 bg-green-50 px-4 py-3 dark:border-green-900/30 dark:bg-green-900/10"
+                    >
+                      <p class="text-[11px] uppercase tracking-[0.18em] text-green-600 dark:text-green-400">
+                        Bảo hành (12 tháng)
+                      </p>
+                      <p class="mt-1 text-sm font-bold text-green-700 dark:text-green-300 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">verified</span>
+                        BH-{{ activeDetailOrder.id }}-12T
+                      </p>
+                    </article>
+                  </div>
 
                 <article
                   class="rounded-2xl border border-slate-200/70 bg-white px-4 py-4 dark:border-[#3c342e] dark:bg-[#241d19]"
@@ -690,6 +702,13 @@
                         isReturningOrder ? "Đang gửi yêu cầu..." : "Trả hàng"
                       }}
                     </button>
+                    <div
+                      v-else-if="activeDetailOrder.returnRejected"
+                      class="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-400"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">block</span>
+                      Yêu cầu hoàn trả đã bị từ chối. Đơn hàng không thể hoàn trả.
+                    </div>
                     <span
                       v-if="!hasAvailableOrderAction"
                       class="text-xs font-medium text-slate-500 dark:text-[#b9aa9a]"
@@ -739,7 +758,7 @@
           class="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6"
         >
           <div
-            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            class="absolute inset-0 bg-black/60"
             @click="!confirmModal.isLoading && (confirmModal.show = false)"
           ></div>
 
@@ -785,6 +804,17 @@
               ></textarea>
               <label class="mb-2 block text-sm font-semibold text-slate-700 dark:text-white mt-3">Ảnh minh chứng</label>
               <input type="file" @change="handleReturnEvidenceUpload" accept="image/*" class="w-full rounded-xl border border-slate-900 bg-slate-50 px-4 py-2 text-sm text-slate-700 dark:border-[#4c4138] dark:bg-[#2a231f] dark:text-white" />
+              
+            </div>
+
+            <div v-if="confirmModal.type === 'cancel'" class="mb-6 text-left">
+              <label class="mb-2 block text-sm font-semibold text-slate-700 dark:text-white">Lý do hủy đơn <span class="text-red-500">*</span></label>
+              <textarea
+                v-model="confirmModal.cancelReason"
+                rows="3"
+                placeholder="Vui lòng cho biết lý do bạn muốn hủy đơn hàng này..."
+                class="w-full rounded-xl border border-slate-900 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus:border-primary focus:outline-none dark:border-[#4c4138] dark:bg-[#2a231f] dark:text-white dark:focus:border-primary"
+              ></textarea>
             </div>
 
             <div class="flex gap-3">
@@ -814,6 +844,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MainTopBar from "@/components/MainTopBar.vue";
@@ -848,6 +879,7 @@ const canReturnActiveOrder = computed(() => {
   if (!activeDetailOrder.value || isDetailLoading.value) {
     return false;
   }
+  if (activeDetailOrder.value.returnRejected) return false;
   const category = getOrderStatusCategory(activeDetailOrder.value.status);
   return category === "delivered" || category === "completed";
 });
@@ -888,6 +920,7 @@ const confirmModal = reactive({
   isLoading: false,
   returnReason: "",
   returnEvidenceImageFile: null,
+  returnItems: [],
 });
 
 const totalOrders = computed(() => orders.value.length);
@@ -945,12 +978,14 @@ const canCancelActiveOrder = computed(() => {
   if (!activeDetailOrder.value || isDetailLoading.value) {
     return false;
   }
+  if (activeDetailOrder.value.returnRejected) return false;
   return isCancelableOrderStatus(activeDetailOrder.value.status);
 });
 const canConfirmActiveOrder = computed(() => {
   if (!activeDetailOrder.value || isDetailLoading.value) {
     return false;
   }
+  if (activeDetailOrder.value.returnRejected) return false;
   return getOrderStatusCategory(activeDetailOrder.value.status) === "delivered";
 });
 const detailItems = computed(() =>
@@ -1188,6 +1223,25 @@ function getStatusMeta(status) {
       label: "Đang giao",
       className:
         "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
+    };
+  }
+
+  if (category === "partialReturnRequest") {
+    return {
+      label: "Yêu cầu hoàn (1 phần)",
+      className: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300",
+    };
+  }
+  if (category === "partialReturned") {
+    return {
+      label: "Đã hoàn (1 phần)",
+      className: "bg-slate-200 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200",
+    };
+  }
+  if (category === "cancelRequest") {
+    return {
+      label: "Chờ hủy đơn",
+      className: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300",
     };
   }
 
@@ -1782,6 +1836,7 @@ function promptCancelOrder() {
   }
 
   confirmModal.type = "cancel";
+  confirmModal.cancelReason = "";
   confirmModal.title = "Xác nhận hủy đơn";
   confirmModal.message = `Bạn chắc chắn muốn hủy ${orderLabel}? Hành động này không thể hoàn tác.`;
   confirmModal.confirmText = "Có, Hủy đơn";
@@ -1798,15 +1853,24 @@ async function executeCancelOrder() {
     cancelOrderMessage.value = "";
     isCancelOrderError.value = false;
 
-    const cancelledOrder = await orderAPI.cancelOrder(id);
-    const nextStatus = (cancelledOrder && cancelledOrder.status) || "CANCELLED";
+        if (!confirmModal.cancelReason || confirmModal.cancelReason.trim() === "") {
+      cancelOrderMessage.value = "Vui lòng nhập lý do hủy đơn.";
+      isCancelOrderError.value = true;
+      isCancellingOrder.value = false;
+      return;
+    }
+    const cancelledOrder = await orderAPI.updateOrder(id, {
+      status: "CANCEL_REQUEST",
+      returnReason: confirmModal.cancelReason.trim(),
+    });
+    const nextStatus = (cancelledOrder && cancelledOrder.status) || "CANCEL_REQUEST";
 
     applyOrderPatch(id, {
       ...cancelledOrder,
       status: nextStatus,
     });
 
-    cancelOrderMessage.value = `Đã hủy ${orderLabel} thành công.`;
+    cancelOrderMessage.value = `Yêu cầu hủy ${orderLabel} đã được gửi. Vui lòng chờ admin xác nhận.`;
     
     // Auto-close modal and go back to order list after short delay
     setTimeout(() => {
@@ -2014,7 +2078,7 @@ async function loadOrders() {
   errorMessage.value = "";
 
   try {
-    const rawUser = localStorage.getItem("user");
+    const rawUser = getSession("user");
     if (!rawUser) {
       router.push("/login");
       return;
@@ -2087,3 +2151,5 @@ watch(routeOrderId, async (next, previous) => {
   animation: fade-scale-in 0.16s reverse ease-in;
 }
 </style>
+
+

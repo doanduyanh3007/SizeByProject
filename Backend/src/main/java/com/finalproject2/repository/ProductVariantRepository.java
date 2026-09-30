@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
     java.util.List<ProductVariant> findByProduct_Id(Long productId);
+    boolean existsByProduct_IdAndColor_IdAndSize_Id(Long productId, Long colorId, Long sizeId);
     @Modifying
     @Query("""
             update ProductVariant v

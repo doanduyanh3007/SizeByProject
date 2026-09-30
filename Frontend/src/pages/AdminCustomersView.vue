@@ -17,12 +17,12 @@
             Quản lý người dùng
           </p>
           <h2 class="mt-1 text-xl font-bold">
-            Quản lý khách hàng và nhân viên
+            Quản lý khách hàng
           </h2>
           <p class="mt-1 text-sm text-slate-500 dark:text-[#b9aa9a]">
             {{
               isAdmin
-                ? "ADMIN xem tất cả khách hàng và nhân viên."
+                ? "ADMIN xem tất cả khách hàng"
                 : "Nhân viên chỉ xem được khách hàng."
             }}
           </p>
@@ -501,6 +501,7 @@
 </template>
 
 <script setup>
+import { getSession } from "@/utils/auth";
 import { computed, onMounted, ref } from "vue";
 
 import AdminShell from "@/components/admin/AdminShell.vue";
@@ -519,7 +520,7 @@ const error = ref("");
 const accounts = ref([]);
 const search = ref("");
 const statusFilter = ref("ALL");
-const currentUserRole = ref(localStorage.getItem("userRole") || null);
+const currentUserRole = ref(getSession("userRole") || null);
 
 const showModal = ref(false);
 const editingAccountId = ref(null);
